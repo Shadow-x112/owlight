@@ -124,4 +124,12 @@ std::string_view name(EntryKind k) {
     return "?";
 }
 
+std::optional<EntryKind> entryKindFromName(std::string_view s) {
+    for (int i = 0; i <= static_cast<int>(EntryKind::Note); ++i) {
+        const auto k = static_cast<EntryKind>(i);
+        if (name(k) == s) return k;
+    }
+    return std::nullopt;
+}
+
 } // namespace owlight

@@ -4,6 +4,7 @@
 
 #include "owlight/Properties.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -56,5 +57,6 @@ private:
 };
 
 std::string_view name(EntryKind k);
+std::optional<EntryKind> entryKindFromName(std::string_view s);
 
 } // namespace owlight

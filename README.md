@@ -20,6 +20,8 @@ ctest --test-dir build --output-on-failure
 ./build/sim/owlight_sim --days 30 --feed river_stone --habitat cold_cave --hidden
 ./build/sim/owlight_sim --list
 ./build/sim/owlight_sim --scenario scenarios/first_day.json
+./build/sim/owlight_sim --days 1 --feed charcoal --save cinder.json
+./build/sim/owlight_sim --load cinder.json --days 1 --feed charcoal     # picks up exactly where it left off
 ```
 
 `owlight_sim` runs one slime through a scenario and prints only what the player could have

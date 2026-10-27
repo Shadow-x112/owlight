@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -549,6 +550,124 @@ TEST(scenario_times_parse_as_written) {
     CHECK(sc->steps.size() == 2);
     CHECK(sc->steps[0].atHours == 0.0);   // sorted: day 1 00:00 before hour 5
     CHECK(sc->steps[1].atHours == 5.0);
+}
+
+// --- Save / load -----------------------------------------------------------------------------
+
+namespace {
+std::string readFile(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    std::ostringstream ss; ss << in.rdbuf(); return ss.str();
+}
+bool sameState(const Slime& a, const Slime& b) {
+    bool same = a.name() == b.name() && a.type() == b.type() && a.locked() == b.locked() &&
+                a.affinityMaterial() == b.affinityMaterial() && a.ageHours() == b.ageHours() &&
+                a.journal().entries().size() == b.journal().entries().size();
+    for (std::size_t i = 0; i < kPropertyCount; ++i) same = same && a.values()[i] == b.values()[i];
+    for (std::size_t i = 0; same && i < a.journal().entries().size(); ++i) {
+        const auto& x = a.journal().entries()[i]; const auto& y = b.journal().entries()[i];
+        same = x.atHours == y.atHours && x.kind == y.kind && x.text == y.text;
+    }
+    return same;
+}
+} // namespace
+
+TEST(a_save_round_trips_byte_for_byte) {
+    const auto& c = Catalog::v1();
+    Slime s("a", rest(), c);
+    runDays(s, 3, c.food("charcoal"), 3, c.habitat("stove_corner"), c.job("scrub_stove"), true);
+    s.giveName("Cinder", s.ageHours());
+    const std::string text = s.save();
+    std::string err;
+    auto loaded = Slime::load(text, c, {}, &err);
+    CHECK(loaded.has_value());
+    if (!loaded) { std::printf("  %s\n", err.c_str()); return; }
+    CHECK(sameState(s, *loaded));
+    CHECK_EQ_STR(loaded->save(), text);
+}
+
+TEST(a_loaded_slime_continues_exactly_where_it_left_off) {
+    // Save mid-way through the first day, load, finish: identical to never having saved.
+    const auto& c = Catalog::v1();
+    Slime a("a", rest(), c);
+    runDays(a, 1, c.food("charcoal"), 3, c.habitat("pen"));
+    auto b = Slime::load(a.save(), c);
+    CHECK(b.has_value());
+    if (!b) return;
+    runDays(a,  2, c.food("charcoal"), 3, c.habitat("stove_corner"), c.job("scrub_stove"));
+    runDays(*b, 2, c.food("charcoal"), 3, c.habitat("stove_corner"), c.job("scrub_stove"));
+    CHECK(sameState(a, *b));
+    CHECK_EQ_STR(b->type()->id, "soot");
+}
+
+TEST(loading_does_not_re_announce_anything) {
+    const auto& c = Catalog::v1();
+    Slime a("a", rest(), c);
+    Context ctx; ctx.habitat = c.habitat("pen"); ctx.job = c.job("fetch");
+    a.tick(30.0, ctx);
+    auto b = Slime::load(a.save(), c);
+    CHECK(b.has_value());
+    if (!b) return;
+    const std::size_t before = b->journal().entries().size();
+    b->tick(0.5, ctx);
+    a.tick(0.5, ctx);
+    CHECK(b->journal().entries().size() == before);
+    CHECK(sameState(a, *b));
+}
+
+TEST(a_save_survives_the_catalog_losing_its_type) {
+    const auto& c = Catalog::v1();
+    Slime s("a", rest(), c);
+    runDays(s, 21, c.food("iron_scrap"), 3, c.habitat("stove_corner"), c.job("forge_assist"));
+    CHECK_EQ_STR(s.type()->id, "forge");
+    CHECK(s.locked());
+    const std::string text = s.save();
+
+    // A catalog where "forge" no longer exists.
+    CatalogTexts t;
+    t.foods = readFile(std::string(OWLIGHT_DATA_DIR) + "/foods.json");
+    t.habitats = readFile(std::string(OWLIGHT_DATA_DIR) + "/habitats.json");
+    t.jobs = readFile(std::string(OWLIGHT_DATA_DIR) + "/jobs.json");
+    t.types = readFile(std::string(OWLIGHT_DATA_DIR) + "/types.json");
+    const auto pos = t.types.find("\"id\": \"forge\"");
+    CHECK(pos != std::string::npos);
+    t.types.replace(pos, 13, "\"id\": \"smelt\"");
+    std::string err;
+    auto altered = Catalog::fromTexts(t, &err);
+    CHECK(altered.has_value());
+    if (!altered) { std::printf("  %s\n", err.c_str()); return; }
+
+    auto b = Slime::load(text, *altered, {}, &err);
+    CHECK(b.has_value());
+    if (!b) { std::printf("  %s\n", err.c_str()); return; }
+    CHECK_EQ_STR(b->type()->id, "smelt");     // same thresholds, new id: re-resolved from values
+    CHECK(!b->locked());                       // a lock on a vanished type does not carry over
+    CHECK(journalHas(*b, EntryKind::Note, "different"));
+}
+
+TEST(bad_saves_are_rejected_with_a_line) {
+    const auto& c = Catalog::v1();
+    auto rejects = [&](const std::string& text, const char* needle) {
+        std::string err;
+        auto s = Slime::load(text, c, {}, &err);
+        CHECK(!s.has_value());
+        CHECK(err.find(needle) != std::string::npos);
+        if (err.find(needle) == std::string::npos) std::printf("  got: %s\n", err.c_str());
+    };
+    Slime good("a", rest(), c);
+    const std::string base = good.save();
+    rejects("{", "save:");
+    rejects("{ \"version\": 99 }", "unsupported save version");
+    rejects("{ \"version\": 1 }", "missing \"name\"");
+    {
+        std::string t = base; const auto p = t.find("\"density\": "); t.replace(p, 11, "\"density\": 7, \"x\": ");
+        rejects(t, "out of range");
+    }
+    {
+        std::string t = base; const auto p = t.find("\"kind\": "); if (p != std::string::npos) t.replace(p, 8, "\"kind\": \"zap\", \"k\": ");
+        else { t.insert(t.rfind("]"), "{ \"at\": 0, \"kind\": \"zap\", \"text\": \"\" }"); }
+        rejects(t, "unknown journal kind");
+    }
 }
 
 int main() {

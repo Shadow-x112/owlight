@@ -22,6 +22,7 @@ add_library(owlight_sim STATIC
   src/Json.cpp
   src/Slime.cpp
   src/Scenario.cpp
+  src/SlimeSave.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedData.cpp"
 )
 target_include_directories(owlight_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

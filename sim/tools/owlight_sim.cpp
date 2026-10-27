@@ -35,6 +35,8 @@ struct Options {
     unsigned seed = 0;
     std::string dataDir;   // empty = built-in catalog
     std::string scenario;  // a scenario file; replaces --days/--feed/--habitat/--job/--near
+    std::string loadFile;  // resume a saved slime instead of starting a fresh one
+    std::string saveFile;  // write the slime's state here when done
     bool list = false;
 };
 
@@ -42,7 +44,8 @@ void usage() {
     std::puts(
         "usage: owlight_sim [--days N] [--feed FOOD[:PER_DAY]]... [--habitat ID] [--job ID]\n"
         "                   [--near] [--hidden] [--quiet] [--seed N] [--data DIR] [--list]\n"
-        "       owlight_sim --scenario FILE [--data DIR] [--hidden] [--quiet]\n");
+        "       owlight_sim --scenario FILE [--data DIR] [--hidden] [--quiet]\n"
+        "       ... [--load SAVE] [--save SAVE]      resume from / write a slime save file\n");
 }
 
 void listCatalog(const Catalog& c) {
@@ -60,6 +63,29 @@ void printTime(double hours) {
     const int day = static_cast<int>(hours / 24.0) + 1;
     const int h = static_cast<int>(hours) % 24;
     std::printf("day %2d %02d:00  ", day, h);
+}
+
+bool writeSave(const Slime& slime, const std::string& path) {
+    if (path.empty()) return true;
+    FILE* f = std::fopen(path.c_str(), "wb");
+    if (!f) { std::fprintf(stderr, "cannot write %s\n", path.c_str()); return false; }
+    const std::string text = slime.save();
+    std::fwrite(text.data(), 1, text.size(), f);
+    std::fclose(f);
+    return true;
+}
+
+std::optional<Slime> readSave(const std::string& path, const Catalog& cat) {
+    FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) { std::fprintf(stderr, "cannot read %s\n", path.c_str()); return std::nullopt; }
+    std::string text;
+    char buf[4096];
+    for (std::size_t n; (n = std::fread(buf, 1, sizeof buf, f)) > 0;) text.append(buf, n);
+    std::fclose(f);
+    std::string err;
+    auto s = Slime::load(text, cat, {}, &err);
+    if (!s) std::fprintf(stderr, "%s\n", err.c_str());
+    return s;
 }
 
 void report(const Slime& slime, const Options& opt, int days) {
@@ -115,6 +141,8 @@ int main(int argc, char** argv) {
         else if (a == "--data") opt.dataDir = next("--data");
         else if (a == "--list") opt.list = true;
         else if (a == "--scenario") opt.scenario = next("--scenario");
+        else if (a == "--load") opt.loadFile = next("--load");
+        else if (a == "--save") opt.saveFile = next("--save");
         else { usage(); return 2; }
     }
 
@@ -135,6 +163,7 @@ int main(int argc, char** argv) {
         const ScenarioResult res = runScenario(*sc, cat, slime);
         if (!sc->name.empty()) std::printf("%s\n\n", sc->name.c_str());
         report(slime, opt, static_cast<int>(sc->endHours / 24.0 + 0.999));
+        if (!writeSave(slime, opt.saveFile)) return 2;
         if (!res.ok()) {
             std::puts("\nexpectations not met:");
             for (const auto& f : res.failures) std::printf("  line %d: %s\n", f.line, f.message.c_str());
@@ -153,7 +182,9 @@ int main(int argc, char** argv) {
         feeds.emplace_back(f, per);
     }
 
-    Slime slime("slime", starterValues(opt.seed), cat);
+    std::optional<Slime> resumed = opt.loadFile.empty() ? std::nullopt : readSave(opt.loadFile, cat);
+    if (!opt.loadFile.empty() && !resumed) return 2;
+    Slime slime = resumed ? *resumed : Slime("slime", starterValues(opt.seed), cat);
     Context ctx;
     ctx.habitat = habitat;
     ctx.job = job;
@@ -175,5 +206,5 @@ int main(int argc, char** argv) {
     }
 
     report(slime, opt, opt.days);
-    return 0;
+    return writeSave(slime, opt.saveFile) ? 0 : 2;
 }

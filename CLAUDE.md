@@ -12,7 +12,9 @@ PRs — propose changes in `docs/design.md` §11 instead.
   - `sim/src/` — implementation. `CatalogLoad.cpp` + `Json.*` parse the catalog; `Catalog.cpp`
     holds no numbers. `Catalog::v1()` parses `data/*.json` embedded at build time
     (`EmbeddedData.cpp.in`), so the shipped catalog needs no files on disk.
-  - `sim/tools/owlight_sim.cpp` — CLI harness ("feed charcoal for 7 days", or `--scenario FILE`).
+  - `sim/src/SlimeSave.cpp` — `Slime::save()`/`Slime::load()`: full state as JSON, by id, exact.
+  - `sim/tools/owlight_sim.cpp` — CLI harness ("feed charcoal for 7 days", `--scenario FILE`,
+    `--save`/`--load`).
 - `scenarios/` — scripted scenarios (format in `sim/include/owlight/Scenario.h`). `first_day.json`
   is docs/design.md §8 and is pinned by a test; keep it passing.
   - `sim/tests/` — tests, run with `ctest`.

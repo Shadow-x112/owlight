@@ -9,6 +9,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,15 @@ public:
 
     // Advance the simulation. Safe for any positive `hours`; internally sub-stepped.
     void tick(double hours, const Context& ctx);
+
+    // Persistence ------------------------------------------------------------
+    // A save is a JSON text holding everything needed to resume exactly: values, exposure, type,
+    // lock, journal, and the bookkeeping that keeps signs and stirring from re-firing. Foods,
+    // habitats, jobs and types are referenced by id so a save survives a catalog change; a type
+    // id missing from the catalog is re-resolved from the values on load.
+    std::string save() const;
+    static std::optional<Slime> load(const std::string& text, const Catalog& catalog,
+                                     Rates rates = {}, std::string* error = nullptr);
 
     // Queries ---------------------------------------------------------------
     const std::string& name() const { return name_; }
