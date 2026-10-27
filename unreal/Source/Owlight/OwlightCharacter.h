@@ -81,10 +81,10 @@ protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	void Move(const FInputActionValue& Value);
-	void Interact();
-	void FeedSelected();
-	void CycleFood();
-	void CycleDevTime();
+	UFUNCTION(BlueprintCallable, Category = "Owlight|Hands") void Interact();
+	UFUNCTION(BlueprintCallable, Category = "Owlight|Hands") void FeedSelected();
+	UFUNCTION(BlueprintCallable, Category = "Owlight|Hands") void CycleFood();
+	UFUNCTION(BlueprintCallable, Category = "Owlight|Dev") void CycleDevTime();
 	void EnsureInputAssets();
 	void UpdateFocus();
 	void ApplyDevTimeScale();
