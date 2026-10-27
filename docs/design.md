@@ -1,10 +1,10 @@
-﻿# Owlight â€” Design Document
+# Owlight — Design Document
 
 *Owlight* (an old English word for dusk, "owl-light") is a cozy isekai slime-research life sim.
 You are dropped into a quiet forest by gods who like you, with three plain slimes and a hut that
 needs work. Everything you feed a slime, everywhere you keep it, every job you give it nudges hidden
 properties nobody can see. When enough of them cross a line together, the slime becomes something
-new â€” and you write it down. The journal is the collection.
+new — and you write it down. The journal is the collection.
 
 Inspiration: the manga *By the Grace of the Gods* (slime research + slice-of-life), the loop of
 *Minecraft* (survival base building, exploring) and *No Man's Sky* (collect, upgrade everything),
@@ -16,7 +16,7 @@ This document is the fixed base. Decisions here are settled unless a later secti
 
 ## 1. Pillars
 
-1. **Research, not a PokÃ©dex.** Slime types emerge from hidden rules the player discovers. The rules
+1. **Research, not a Pokédex.** Slime types emerge from hidden rules the player discovers. The rules
    are fixed and consistent: feed iron in the cold and you *always* get the same thing, so players
    can tell each other. No visible stat numbers, ever.
 2. **Quiet days.** Combat exists because the forest has things in it, but the game is about
@@ -40,7 +40,7 @@ This document is the fixed base. Decisions here are settled unless a later secti
 
 - **Camera:** pulled-back third person with a slight tilt (Animal Crossing's camera). You see
   yourself, your slimes and the room at once.
-- **Look:** *pixel art with realistic materials* â€” everything pixelated, but photoreal lighting and
+- **Look:** *pixel art with realistic materials* — everything pixelated, but photoreal lighting and
   materials underneath: wet reflections, fog, light through leaves, subsurface glow in a slime.
   Rule: the world may use a slightly coarser pixel grid than the slimes, so the stars stay crisp.
 - **Style proof first.** One Unreal scene: one slime on a forest floor, real light through leaves,
@@ -61,7 +61,7 @@ This document is the fixed base. Decisions here are settled unless a later secti
 
 Every slime carries ten hidden properties as values in `[0, 1]`. Nothing displays the numbers.
 Everything the player does nudges them. Properties drift slowly back toward their resting point
-when nothing is pushing them, so some paths reverse if you stop (and some lock in â€” see Â§5.3).
+when nothing is pushing them, so some paths reverse if you stop (and some lock in — see §5.3).
 
 ### 5.1 Properties
 
@@ -70,11 +70,11 @@ when nothing is pushing them, so some paths reverse if you stop (and some lock i
 | 1 | **Density** | heavy foods (ore, stone, nuts) | sweet / soft foods | how it sits, how deep it sinks in the pen |
 | 2 | **Heat** | fire, sun, spicy and dried foods | water, shade, night | faint glow (hot) or dew on the surface (cold) |
 | 3 | **Acidity** | rotten food, sap, certain mushrooms | chalk, milk | what it does to what it sits on (grass yellows) |
-| 4 | **Clarity** | clean water, minerals | mud, soot | translucency â€” the pixel-realistic payoff property |
+| 4 | **Clarity** | clean water, minerals | mud, soot | translucency — the pixel-realistic payoff property |
 | 5 | **Appetite** | being fed often | starving | size, how fast it chases food |
 | 6 | **Boldness** | being near you, combat, loud places | isolation | the distance it keeps from you |
 | 7 | **Memory** | repeating the same job | variety | finishing tasks without being told |
-| 8 | **Affinity** | the material it has been around longest (metal, wood, cloth, water, stone) | â€” | what it drifts toward in a room |
+| 8 | **Affinity** | the material it has been around longest (metal, wood, cloth, water, stone) | — | what it drifts toward in a room |
 | 9 | **Light** | hours of daylight | hours of darkness | when it is active |
 | 10 | **Bond** | being picked up, named, kept close | neglect | it follows you |
 
@@ -85,11 +85,11 @@ it gates loyalty (following, coming when called, v2 breeding).
 
 A type is a set of property thresholds that must all hold at once. When they do, the slime visibly
 changes (color, texture, size, a new behavior) and gains a job it can do. Examples (full v1 list in
-Â§6): high Density + high Heat + metal Affinity â†’ forge slime; high Clarity + low Light + water
-Affinity â†’ lantern slime that lights caves.
+§6): high Density + high Heat + metal Affinity → forge slime; high Clarity + low Light + water
+Affinity → lantern slime that lights caves.
 
 More specific types win over less specific ones. A slime that no longer meets its type's thresholds
-reverts after a grace period â€” *unless* the type is marked locked-in.
+reverts after a grace period — *unless* the type is marked locked-in.
 
 ### 5.3 Rules of thumb (v1)
 
@@ -111,7 +111,7 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 | Type | Key conditions | What it does |
 |------|----------------|--------------|
 | Plain | none | the starting state |
-| Soot | high density, low clarity, some acidity (charcoal diet) | cleans ash, soot, grime â€” the first-morning payoff |
+| Soot | high density, low clarity, some acidity (charcoal diet) | cleans ash, soot, grime — the first-morning payoff |
 | Brook | high clarity, water affinity, cool | keeps water clean; a bowl of it never fouls |
 | Lantern | very high clarity, low light, water affinity | glows; lights caves and night paths |
 | Forge | high heat, high density, metal affinity | holds heat; cooks, warms the hut, softens metal |
@@ -127,8 +127,8 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 
 ## 7. Animal Crossing layer
 
-- **Real time** (Â§1). Slime changes are measured in real hours and days.
-- **Villagers**: 4â€“5 AI townsfolk in v1 with personalities, who comment on your slimes and move
+- **Real time** (§1). Slime changes are measured in real hours and days.
+- **Villagers**: 4–5 AI townsfolk in v1 with personalities, who comment on your slimes and move
   away if the town gets boring. (Agent tech shared with world-zero.)
 - **Decorating**: home, pens, (v2) shop. Decor is an experiment input: a dark cluttered room pushes
   a slime differently than a sunny one.
@@ -154,10 +154,10 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 ## 9. v1 scope (the version that proves the game)
 
 - One forest region: clearing, stream, cave, hidden town.
-- One season (autumn â€” best light for the look).
-- 3 starter slimes, ~12 discoverable types (Â§6) plus one rare.
+- One season (autumn — best light for the look).
+- 3 starter slimes, ~12 discoverable types (§6) plus one rare.
 - Home: hut you repair, one pen, basic decorating.
-- Town: 4â€“5 villagers, one shop, the museum.
+- Town: 4–5 villagers, one shop, the museum.
 - Gods: the opening scene and two or three drop-ins.
 - **Not in v1:** the player's own shop, festivals, breeding, other seasons, other regions.
 
@@ -166,12 +166,15 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 1. **Sim core** (this repo, `sim/`): properties, nudges, thresholds, real-time ticking, journal.
    Standalone C++17, CLI harness, tests. *Done.*
 2. **Data**: foods, habitats, jobs, types in `data/*.json`, the only copy of the numbers. *Done.*
-3. **Scenarios**: scripted day-by-day files (`scenarios/`); the first day (Â§8) replays exactly
+3. **Scenarios**: scripted day-by-day files (`scenarios/`); the first day (§8) replays exactly
    and is pinned by a test. *Done.*
 4. **Save/load**: a slime's full state as JSON, exact to the bit; survives catalog changes. *Done.*
 5. **C API** (`sim/include/owlight/owlight_c.h`): opaque handles, ids as strings, no C++ types
    across the boundary; proven from plain C by a test. *Done.* The core is complete for v1.
-6. **Style proof** in Unreal â† *current*: one slime, one forest floor, the pixel post-process.
+6. **Style proof** in Unreal: one slime, one forest floor, the pixel post-process. *Done* (2026-10-27;
+   scripts and findings in `unreal/README.md`). 5 px world grid / 2 px slime grid; scanned Poly Haven
+   forest under Hornbeams at a low dusk sun; slime = translucent sculpted dome + inner core, driven by
+   Clarity / Heat / Density / Glow.
 7. **Unreal project** ← *current*: third-person character, pens, hut, sim library wrapped in Blueprints.
 8. The first day, playable end to end.
 9. Town, villagers, museum.
