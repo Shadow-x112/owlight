@@ -164,9 +164,10 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 ## 10. Build order
 
 1. **Sim core** (this repo, `sim/`): properties, nudges, thresholds, real-time ticking, journal.
-   Standalone C++17, CLI harness, tests. Prove the rules feel like research by simulating weeks in
-   seconds. ← *current*
-2. **Data**: foods, habitats, jobs, types as data files once the model stops moving.
+   Standalone C++17, CLI harness, tests. *Done.*
+2. **Data**: foods, habitats, jobs, types in `data/*.json`, the only copy of the numbers. *Done.*
+   Still to do in the core before Unreal: scenario files (replay the first day exactly),
+   slime save/load, a C API shim. ← *current*
 3. **Style proof** in Unreal: one slime, one forest floor, the pixel post-process.
 4. **Unreal project**: third-person character, pens, hut, sim library wrapped in Blueprints.
 5. The first day, playable end to end.
