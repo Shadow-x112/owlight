@@ -51,6 +51,11 @@ constexpr double kRestingValue = 0.5;
 inline double& at(PropertyValues& v, Property p) { return v[static_cast<std::size_t>(p)]; }
 inline double  at(const PropertyValues& v, Property p) { return v[static_cast<std::size_t>(p)]; }
 
+// Starting values for a new slime: the resting value plus a small deterministic variance, so
+// individuals differ a little without breaking the rules. Not randomness: the same seed always
+// gives the same slime, and seed 0 is exactly at rest.
+PropertyValues starterValues(unsigned seed);
+
 // Clamp a value into [0, 1].
 double clamp01(double x);
 

@@ -1,0 +1,47 @@
+{
+  "note": "docs/design.md §8, the first day. Three plain slimes in the pen; the hut has grain, a mushroom and charcoal. One keeps eating the charcoal. A fourth turns up under a rock by the stream. By the next morning's feeding the charcoal slime has become a soot slime.",
+  "slimes": [
+    { "id": "inky",   "seed": 1, "habitat": "pen", "note": "the one that finds the charcoal" },
+    { "id": "bluish", "seed": 2, "habitat": "pen", "note": "a little bluer than the others" },
+    { "id": "dewy",   "seed": 3, "habitat": "pen", "note": "sits closest to the water trough" }
+  ],
+  "script": [
+    { "day": 1, "note": "Arrive. Morning in the hut.", "actions": [
+      { "at": "08:00", "slime": "inky",   "feed": "charcoal", "note": "the accidental experiment" },
+      { "at": "08:00", "slime": "bluish", "feed": "grain" },
+      { "at": "08:00", "slime": "dewy",   "feed": "mushroom" },
+      { "at": "08:00", "slime": "inky",   "expect": { "type": "plain" }, "note": "one charcoal is not enough" },
+
+      { "at": "12:00", "slime": "inky",   "feed": "charcoal" },
+      { "at": "12:00", "slime": "bluish", "feed": "grain" },
+      { "at": "12:00", "slime": "dewy",   "feed": "grain" },
+      { "at": "12:00", "slime": "inky",   "expect": { "journal": "something is changing" }, "note": "you noticed" },
+
+      { "at": "14:00", "find": "pebble", "seed": 4, "habitat": "stream_bank", "note": "under a rock by the stream" },
+      { "at": "14:00", "slime": "pebble", "pick_up": true, "note": "by hand" },
+      { "at": "14:30", "slime": "pebble", "move": "pen" },
+
+      { "at": "16:00", "slime": "inky",   "feed": "charcoal" },
+      { "at": "16:00", "slime": "bluish", "feed": "grain" },
+      { "at": "16:00", "slime": "dewy",   "feed": "grain" },
+      { "at": "16:00", "slime": "pebble", "feed": "grain" },
+      { "at": "16:00", "slime": "inky",   "expect": { "type": "plain", "sign": "cloudy" }, "note": "cloudy by evening, still plain" },
+
+      { "at": "23:00", "slime": "inky",   "expect": { "type": "plain" }, "note": "night: it sleeps where you put it" }
+    ]},
+    { "day": 2, "note": "The payoff.", "actions": [
+      { "at": "08:00", "slime": "inky",   "expect": { "type": "plain" }, "note": "not before breakfast" },
+      { "at": "08:00", "slime": "inky",   "feed": "charcoal", "note": "the morning feeding tips it over" },
+      { "at": "08:00", "slime": "inky",   "expect": { "type": "soot", "journal": "became a soot" } },
+      { "at": "08:00", "slime": "inky",   "name": "Sooty" },
+      { "at": "08:00", "slime": "inky",   "assign": "scrub_stove", "note": "it cleans the ash out of the stove" },
+      { "at": "08:00", "slime": "bluish", "expect": { "type": "plain" } },
+      { "at": "08:00", "slime": "dewy",   "expect": { "type": "plain" } },
+      { "at": "08:00", "slime": "pebble", "expect": { "type": "plain" } },
+
+      { "at": "12:00", "slime": "inky",   "feed": "charcoal" },
+      { "at": "16:00", "slime": "inky",   "feed": "charcoal" },
+      { "at": "23:00", "slime": "inky",   "expect": { "type": "soot", "sign": "sits heavy" }, "note": "still soot while you keep feeding it charcoal" }
+    ]}
+  ]
+}

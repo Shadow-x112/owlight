@@ -32,6 +32,17 @@ std::string_view name(Material m) {
     return "?";
 }
 
+PropertyValues starterValues(unsigned seed) {
+    PropertyValues v{};
+    unsigned x = seed * 2654435761u + 12345u;
+    for (auto& p : v) {
+        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+        const double jitter = seed == 0 ? 0.0 : (static_cast<double>(x % 1000) / 1000.0 - 0.5) * 0.10;
+        p = kRestingValue + jitter;
+    }
+    return v;
+}
+
 double clamp01(double x) { return x < 0.0 ? 0.0 : (x > 1.0 ? 1.0 : x); }
 
 } // namespace owlight

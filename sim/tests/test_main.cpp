@@ -2,6 +2,7 @@
 // Each test encodes a design promise from docs/design.md, not an implementation detail.
 
 #include "owlight/Catalog.h"
+#include "owlight/Scenario.h"
 #include "owlight/Slime.h"
 
 #include <cmath>
@@ -457,6 +458,166 @@ TEST(bad_data_is_rejected_with_a_reason) {
     std::string err;
     CHECK(!Catalog::load(std::string(OWLIGHT_TEST_SCRATCH) + "/no_such_dir", &err).has_value());
     CHECK(err.find("cannot open") != std::string::npos);
+}
+
+// --- Scenario files ------------------------------------------------------------------------
+
+namespace {
+
+std::optional<ScenarioRun> runText(const std::string& text, std::string* err = nullptr) {
+    const auto sc = Scenario::parse(text, "test.json", Catalog::v1(), err);
+    if (!sc) return std::nullopt;
+    return runScenario(*sc, Catalog::v1());
+}
+
+} // namespace
+
+TEST(the_first_day_replays_from_its_scenario_file) {
+    // docs/design.md §8, scripted in scenarios/first_day.json, and its expectations hold.
+    const auto& c = Catalog::v1();
+    std::string err;
+    const auto sc = Scenario::load(std::string(OWLIGHT_SCENARIO_DIR) + "/first_day.json", c, &err);
+    if (!sc) std::printf("  load failed: %s\n", err.c_str());
+    CHECK(sc.has_value());
+    if (!sc) return;
+    const ScenarioRun run = runScenario(*sc, c);
+    for (const auto& f : run.failures) std::printf("  %s\n", f.c_str());
+    CHECK(run.passed());
+    CHECK(run.expectations >= 10);
+
+    // The payoff lands on the morning feeding of day 2, not a moment before.
+    const ScenarioSlime* inky = run.find("inky");
+    CHECK(inky != nullptr);
+    if (!inky) return;
+    double became = -1.0;
+    for (const auto& e : inky->slime.journal().entries())
+        if (e.kind == EntryKind::Became && became < 0) became = inky->bornAt + e.atHours;
+    CHECK(became == 24.0 + 8.0);
+    CHECK_EQ_STR(inky->slime.name(), "Sooty");
+
+    // The slime found under the rock joined the household in the afternoon and lives in the pen.
+    const ScenarioSlime* pebble = run.find("pebble");
+    CHECK(pebble != nullptr);
+    if (!pebble) return;
+    CHECK(pebble->bornAt == 14.0);
+    CHECK_EQ_STR(pebble->habitat->id, "pen");
+    CHECK(run.slimes.size() == 4);
+
+    // Picking it up by hand bonded it: the same afternoon without the pick-up leaves less bond.
+    std::ifstream in(std::string(OWLIGHT_SCENARIO_DIR) + "/first_day.json", std::ios::binary);
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const std::string pickUp = R"({ "at": "14:00", "slime": "pebble", "pick_up": true, "note": "by hand" },)";
+    CHECK(text.find(pickUp) != std::string::npos);
+    if (text.find(pickUp) == std::string::npos) return;
+    text.erase(text.find(pickUp), pickUp.size());
+    const auto untouched = Scenario::parse(text, "first_day.json", c);
+    CHECK(untouched.has_value());
+    if (!untouched) return;
+    const ScenarioRun other = runScenario(*untouched, c);
+    CHECK(at(pebble->slime.values(), Property::Bond) > at(other.find("pebble")->slime.values(), Property::Bond));
+}
+
+TEST(a_scenario_replays_exactly_like_hour_by_hour_driving) {
+    // The runner splits time on the hour, so it matches runDays to the last bit.
+    const auto& c = Catalog::v1();
+    const auto run = runText(R"({
+      "days": 3,
+      "slimes": [ { "id": "a", "habitat": "stove_corner" } ],
+      "script": [
+        { "day": 1, "actions": [
+          { "at": "00:00", "slime": "a", "assign": "scrub_stove" },
+          { "at": "00:00", "slime": "a", "near": true },
+          { "at": "08:00", "slime": "a", "feed": "charcoal" },
+          { "at": "12:00", "slime": "a", "feed": "charcoal" },
+          { "at": "16:00", "slime": "a", "feed": "charcoal" } ]},
+        { "day": 2, "actions": [
+          { "at": "08:00", "slime": "a", "feed": "charcoal" },
+          { "at": "12:00", "slime": "a", "feed": "charcoal" },
+          { "at": "16:00", "slime": "a", "feed": "charcoal" } ]},
+        { "day": 3, "actions": [
+          { "at": "08:00", "slime": "a", "feed": "charcoal" },
+          { "at": "12:00", "slime": "a", "feed": "charcoal" },
+          { "at": "16:00", "slime": "a", "feed": "charcoal" } ]}
+      ]
+    })");
+    CHECK(run.has_value());
+    if (!run) return;
+    Slime s("a", rest(), c);
+    runDays(s, 3, c.food("charcoal"), 3, c.habitat("stove_corner"), c.job("scrub_stove"), /*near=*/true);
+    const Slime& replayed = run->slimes.front().slime;
+    CHECK(replayed.values() == s.values());
+    CHECK_EQ_STR(replayed.type()->id, s.type()->id);
+    CHECK(replayed.journal().entries().size() == s.journal().entries().size());
+}
+
+TEST(a_failed_expectation_says_where_and_what) {
+    std::string err;
+    const auto run = runText(R"({
+      "slimes": [ { "id": "a", "habitat": "pen" } ],
+      "script": [ { "day": 1, "actions": [
+        { "at": "09:00", "slime": "a", "feed": "charcoal" },
+        { "at": "09:30", "slime": "a",
+          "expect": { "type": "soot" } }
+      ]} ]
+    })", &err);
+    CHECK(run.has_value());
+    if (!run) { std::printf("  %s\n", err.c_str()); return; }
+    CHECK(!run->passed());
+    CHECK(run->failures.size() == 1);
+    if (run->failures.size() != 1) return;
+    const std::string& f = run->failures.front();
+    CHECK(f.find("test.json:5:") == 0);
+    CHECK(f.find("day 1 09:30") != std::string::npos);
+    CHECK(f.find("expected type soot, found plain") != std::string::npos);
+    if (f.find("test.json:5:") != 0) std::printf("  failure was: %s\n", f.c_str());
+}
+
+TEST(bad_scenarios_are_rejected_with_a_reason) {
+    const std::string head = R"({ "slimes": [ { "id": "a", "habitat": "pen" } ], "script": [ { "day": 1, "actions": [ )";
+    const std::string tail = R"( ] } ] })";
+    struct Case { const char* actions; const char* expect; };
+    const Case cases[] = {
+        {R"({ "at": "08:00", "slime": "a", "feed": "charcol" })", "unknown food \"charcol\""},
+        {R"({ "at": "08:00", "slime": "b", "feed": "grain" })", "no slime \"b\" at this point"},
+        {R"({ "at": "08:00", "slime": "a", "feed": "grain", "move": "cave" })", "one action, one verb"},
+        {R"({ "at": "8:00", "slime": "a", "feed": "grain" })", "must look like \"08:00\""},
+        {R"({ "at": "25:00", "slime": "a", "feed": "grain" })", "not a time of day"},
+        {R"({ "at": "09:00", "slime": "a", "feed": "grain" }, { "at": "08:00", "slime": "a", "feed": "grain" })", "go forward in time"},
+        {R"({ "at": "08:00", "slime": "a", "move": "attic" })", "unknown habitat \"attic\""},
+        {R"({ "at": "08:00", "slime": "a", "assign": "dance" })", "unknown job \"dance\""},
+        {R"({ "at": "08:00", "slime": "a", "expect": { "type": "dragon" } })", "unknown type \"dragon\""},
+        {R"({ "at": "08:00", "slime": "a", "expect": { "colour": "blue" } })", "unknown key \"colour\""},
+        {R"({ "at": "08:00", "slime": "a" })", "needs a verb"},
+        {R"({ "at": "08:00", "find": "a", "habitat": "cave" })", "duplicate slime \"a\""},
+        {R"({ "at": "08:00", "slime": "a", "feed": "grain", "seed": 3 })", "unknown key \"seed\""},
+    };
+    for (const auto& k : cases) {
+        std::string err;
+        const bool parsed = runText(head + k.actions + tail, &err).has_value();
+        const bool ok = !parsed && err.find("test.json:1:") == 0 && err.find(k.expect) != std::string::npos;
+        if (!ok) std::printf("  expected \"%s\", got \"%s\"\n", k.expect, err.c_str());
+        CHECK(ok);
+    }
+    std::string err;
+    CHECK(!Scenario::load("no_such_scenario.json", Catalog::v1(), &err).has_value());
+    CHECK(err.find("cannot open") != std::string::npos);
+}
+
+TEST(the_first_day_plays_the_same_on_the_data_catalog) {
+    const std::string file = std::string(OWLIGHT_SCENARIO_DIR) + "/first_day.json";
+    const auto loaded = Catalog::load(OWLIGHT_DATA_DIR);
+    CHECK(loaded.has_value());
+    if (!loaded) return;
+    const auto onData = Scenario::load(file, *loaded);
+    const auto builtIn = Scenario::load(file, Catalog::v1());
+    CHECK(onData.has_value() && builtIn.has_value());
+    if (!onData || !builtIn) return;
+    const ScenarioRun a = runScenario(*onData, *loaded);
+    const ScenarioRun b = runScenario(*builtIn, Catalog::v1());
+    CHECK(a.passed());
+    CHECK(a.slimes.size() == b.slimes.size());
+    for (std::size_t i = 0; i < a.slimes.size() && i < b.slimes.size(); ++i)
+        CHECK(a.slimes[i].slime.values() == b.slimes[i].slime.values());
 }
 
 int main() {

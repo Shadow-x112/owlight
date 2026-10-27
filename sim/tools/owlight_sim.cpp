@@ -4,14 +4,18 @@
 //   owlight_sim --days 14 --feed iron_scrap --habitat cold_cave --hidden
 //   owlight_sim --days 3 --feed grain:1 --feed mushroom:2 --job clean_house --near
 //   owlight_sim --data data --days 7 --feed charcoal      (catalog from the data files)
+//   owlight_sim --scenario scenarios/first_day.json         (a scripted day-by-day run)
 //
 // Feedings are spread across the daytime. Day is 06:00–20:00. Everything else is the sim.
 
 #include "owlight/Catalog.h"
+#include "owlight/Scenario.h"
 #include "owlight/Slime.h"
 
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -31,13 +35,15 @@ struct Options {
     bool quiet = false;
     unsigned seed = 0;
     std::string dataDir;   // empty = built-in catalog
+    std::string scenario;  // a scenario file replaces --days/--feed/--habitat/--job/--near/--seed
     bool list = false;
 };
 
 void usage() {
     std::puts(
         "usage: owlight_sim [--days N] [--feed FOOD[:PER_DAY]]... [--habitat ID] [--job ID]\n"
-        "                   [--near] [--hidden] [--quiet] [--seed N] [--data DIR] [--list]\n");
+        "                   [--near] [--hidden] [--quiet] [--seed N] [--data DIR] [--list]\n"
+        "       owlight_sim --scenario FILE [--hidden] [--quiet] [--data DIR]\n");
 }
 
 void listCatalog(const Catalog& c) {
@@ -51,23 +57,71 @@ void listCatalog(const Catalog& c) {
     for (const auto& t : c.types()) std::printf("  %s%s\n", t.id.c_str(), t.rare ? "  (rare)" : "");
 }
 
-// Small deterministic variance so starter slimes differ a little. Not real randomness:
-// the same seed always gives the same slime.
-PropertyValues starterValues(unsigned seed) {
-    PropertyValues v{};
-    unsigned x = seed * 2654435761u + 12345u;
-    for (auto& p : v) {
-        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
-        const double jitter = seed == 0 ? 0.0 : (static_cast<double>(x % 1000) / 1000.0 - 0.5) * 0.10;
-        p = kRestingValue + jitter;
-    }
-    return v;
-}
-
 void printTime(double hours) {
     const int day = static_cast<int>(hours / 24.0) + 1;
     const int h = static_cast<int>(hours) % 24;
     std::printf("day %2d %02d:00  ", day, h);
+}
+
+// Minute precision, for scenarios (a slime found at 14:30 has its journal at :30).
+void printClock(double hours) {
+    const int minutes = static_cast<int>(std::lround(hours * 60.0));
+    std::printf("day %2d %02d:%02d  ", minutes / 1440 + 1, (minutes / 60) % 24, minutes % 60);
+}
+
+void printNotice(const Slime& slime, bool showHidden) {
+    bool any = false;
+    for (const auto& s : slime.signs()) {
+        if (!s.text.empty()) { std::printf("  - %s\n", s.text.c_str()); any = true; }
+    }
+    if (!any) std::puts("  - nothing unusual");
+    if (showHidden) {
+        std::puts("hidden:");
+        for (std::size_t i = 0; i < kPropertyCount; ++i) {
+            std::printf("  %-9s %.2f\n", std::string(name(static_cast<Property>(i))).c_str(), slime.values()[i]);
+        }
+        std::printf("  material  %s\n", std::string(name(slime.affinityMaterial())).c_str());
+    }
+}
+
+int runScenarioFile(const Options& opt, const Catalog& cat) {
+    std::string err;
+    const auto sc = Scenario::load(opt.scenario, cat, &err);
+    if (!sc) { std::fprintf(stderr, "%s\n", err.c_str()); return 2; }
+    const ScenarioRun run = runScenario(*sc, cat);
+
+    if (!opt.quiet) {
+        // One journal for the whole household, in world time; file order breaks ties.
+        struct Line { double at; std::size_t slime, index; };
+        std::vector<Line> lines;
+        for (std::size_t i = 0; i < run.slimes.size(); ++i) {
+            const auto& entries = run.slimes[i].slime.journal().entries();
+            for (std::size_t k = 0; k < entries.size(); ++k)
+                lines.push_back({run.slimes[i].bornAt + entries[k].atHours, i, k});
+        }
+        std::stable_sort(lines.begin(), lines.end(), [](const Line& a, const Line& b) { return a.at < b.at; });
+        std::puts("journal:");
+        for (const auto& l : lines) {
+            const auto& s = run.slimes[l.slime];
+            const auto& e = s.slime.journal().entries()[l.index];
+            printClock(l.at);
+            std::printf("%-8s [%s] %s\n", s.id.c_str(), std::string(name(e.kind)).c_str(), e.text.c_str());
+        }
+        std::puts("");
+    }
+
+    std::printf("after %d day(s):\n", sc->days);
+    for (const auto& s : run.slimes) {
+        std::printf("%s%s%s: %s%s\n", s.id.c_str(), s.slime.name() != s.id ? " (" : "",
+                    s.slime.name() != s.id ? (s.slime.name() + ")").c_str() : "",
+                    s.slime.type()->id.c_str(), s.slime.locked() ? " (locked in)" : "");
+        printNotice(s.slime, opt.showHidden);
+    }
+
+    std::puts("");
+    for (const auto& f : run.failures) std::printf("FAIL %s\n", f.c_str());
+    std::printf("%d expectation(s), %zu failed\n", run.expectations, run.failures.size());
+    return run.passed() ? 0 : 1;
 }
 
 } // namespace
@@ -94,6 +148,7 @@ int main(int argc, char** argv) {
         else if (a == "--quiet") opt.quiet = true;
         else if (a == "--seed") opt.seed = static_cast<unsigned>(std::atoi(next("--seed")));
         else if (a == "--data") opt.dataDir = next("--data");
+        else if (a == "--scenario") opt.scenario = next("--scenario");
         else if (a == "--list") opt.list = true;
         else { usage(); return 2; }
     }
@@ -106,6 +161,7 @@ int main(int argc, char** argv) {
     }
     const Catalog& cat = loaded ? *loaded : Catalog::v1();
     if (opt.list) { listCatalog(cat); return 0; }
+    if (!opt.scenario.empty()) return runScenarioFile(opt, cat);
     const Habitat* habitat = cat.habitat(opt.habitat);
     if (!habitat) { std::fprintf(stderr, "unknown habitat: %s\n", opt.habitat.c_str()); return 2; }
     const Job* job = nullptr;
@@ -149,18 +205,6 @@ int main(int argc, char** argv) {
 
     std::printf("after %d day(s): %s%s\n", opt.days, slime.type()->id.c_str(), slime.locked() ? " (locked in)" : "");
     std::puts("what you'd notice:");
-    bool any = false;
-    for (const auto& s : slime.signs()) {
-        if (!s.text.empty()) { std::printf("  - %s\n", s.text.c_str()); any = true; }
-    }
-    if (!any) std::puts("  - nothing unusual");
-
-    if (opt.showHidden) {
-        std::puts("hidden:");
-        for (std::size_t i = 0; i < kPropertyCount; ++i) {
-            std::printf("  %-9s %.2f\n", std::string(name(static_cast<Property>(i))).c_str(), slime.values()[i]);
-        }
-        std::printf("  material  %s\n", std::string(name(slime.affinityMaterial())).c_str());
-    }
+    printNotice(slime, opt.showHidden);
     return 0;
 }

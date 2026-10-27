@@ -15,6 +15,8 @@ PRs — propose changes in `docs/design.md` §11 instead.
   - `sim/tests/` — tests, run with `ctest`.
 - `data/` — the catalog as JSON (`Catalog::load("data")`), format in `data/README.md`. Must equal
   `Catalog.cpp` exactly; a test enforces it, so tune both together.
+- `scenarios/` — scripted day-by-day runs with built-in `expect` checks (`owlight_sim --scenario`);
+  each file is a ctest. `first_day.json` is `docs/design.md` §8. Format in `scenarios/README.md`.
 - Unreal project lives on the owner's PC, not in this repo (yet).
 
 ## Build
@@ -24,6 +26,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/sim/owlight_sim --days 7 --feed charcoal
+./build/sim/owlight_sim --scenario scenarios/first_day.json
 ```
 
 ## Rules for the sim
