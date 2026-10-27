@@ -1,0 +1,13 @@
+[
+  { "id": "pen", "per_hour": {}, "material": "none", "daylight": 1.0 },
+  { "id": "stove_corner", "per_hour": { "heat": 0.004, "clarity": -0.001 }, "material": "metal", "daylight": 0.6 },
+  { "id": "stream_bank", "per_hour": { "clarity": 0.003, "heat": -0.002 }, "material": "water", "daylight": 1.0 },
+  { "id": "cave", "per_hour": { "heat": -0.003, "clarity": 0.001 }, "material": "stone", "daylight": 0.0 },
+  { "id": "cold_cave", "per_hour": { "heat": -0.006, "clarity": 0.002 }, "material": "stone", "daylight": 0.0, "note": "the rare one" },
+  { "id": "cave_pool", "per_hour": { "heat": -0.003, "clarity": 0.003 }, "material": "water", "daylight": 0.0, "note": "dark water: lanterns" },
+  { "id": "garden_bed", "per_hour": { "acidity": 0.001, "density": 0.001 }, "material": "wood", "daylight": 1.0 },
+  { "id": "woodpile", "per_hour": { "light": -0.001 }, "material": "wood", "daylight": 0.5 },
+  { "id": "sunny_sill", "per_hour": { "heat": 0.003 }, "material": "none", "daylight": 1.0 },
+  { "id": "cupboard", "per_hour": {}, "material": "cloth", "daylight": 0.0 },
+  { "id": "workshop", "per_hour": { "heat": 0.001 }, "material": "metal", "daylight": 0.5, "loud": true }
+]

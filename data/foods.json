@@ -1,0 +1,17 @@
+[
+  { "id": "grain", "per_feeding": { "density": 0.02, "heat": 0.01 } },
+  { "id": "mushroom", "per_feeding": { "acidity": 0.04, "light": -0.02, "clarity": -0.02 } },
+  { "id": "charcoal", "per_feeding": { "density": 0.06, "clarity": -0.09, "acidity": 0.03, "heat": 0.01 } },
+  { "id": "berry", "per_feeding": { "density": -0.04, "clarity": 0.02, "acidity": 0.01 } },
+  { "id": "honey", "per_feeding": { "density": -0.05, "heat": 0.01, "boldness": 0.01 } },
+  { "id": "iron_scrap", "per_feeding": { "density": 0.08, "clarity": 0.02 }, "material": "metal", "exposure_hours": 2.0 },
+  { "id": "river_stone", "per_feeding": { "density": 0.07, "clarity": 0.04, "heat": -0.01 }, "material": "stone", "exposure_hours": 2.0 },
+  { "id": "spring_water", "per_feeding": { "clarity": 0.07, "heat": -0.03, "acidity": -0.02 }, "material": "water", "exposure_hours": 1.0 },
+  { "id": "mud", "per_feeding": { "clarity": -0.07, "density": 0.02 } },
+  { "id": "rotten_fruit", "per_feeding": { "acidity": 0.08, "clarity": -0.03, "density": -0.02 } },
+  { "id": "milk", "per_feeding": { "acidity": -0.06, "clarity": 0.01, "density": -0.01 } },
+  { "id": "chalk", "per_feeding": { "acidity": -0.08, "density": 0.03, "clarity": -0.02 }, "material": "stone", "exposure_hours": 1.0 },
+  { "id": "dried_pepper", "per_feeding": { "heat": 0.08, "acidity": 0.02, "density": -0.01 } },
+  { "id": "sap", "per_feeding": { "acidity": 0.05, "density": 0.02 }, "material": "wood", "exposure_hours": 2.0 },
+  { "id": "cave_moss", "per_feeding": { "light": -0.04, "clarity": -0.03, "acidity": 0.02, "heat": -0.02 } }
+]

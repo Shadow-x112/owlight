@@ -1,5 +1,6 @@
-// The v1 catalog. This file is the numeric source of truth for foods, habitats, jobs and
-// type thresholds. Tune here; the design intent for each entry is in docs/design.md §5–6.
+// The built-in v1 catalog. The data files in data/ hold the same numbers and are what the game
+// loads; the test `loaded_catalog_equals_the_built_in_one` fails if the two disagree, so a tuning
+// change goes in both places. The design intent for each entry is in docs/design.md §5–6.
 //
 // Scale reminder: properties live in [0,1] and rest at 0.5. Food deltas are per feeding
 // (a slime is fed ~3 times a day). Habitat/job deltas are per hour. Drift pulls every value
@@ -43,11 +44,16 @@ Condition between(P p, double lo, double hi) { return Condition{p, lo, hi}; }
 } // namespace
 
 const Catalog& Catalog::v1() {
-    static const Catalog instance;
+    static const Catalog instance = [] {
+        Catalog c;
+        c.fillBuiltIn();
+        c.finish();
+        return c;
+    }();
     return instance;
 }
 
-Catalog::Catalog() {
+void Catalog::fillBuiltIn() {
     // --- Foods (per feeding) -------------------------------------------------------------
     foods_ = {
         mkFood("grain",        deltas({{P::Density, 0.02}, {P::Heat, 0.01}})),
@@ -142,12 +148,14 @@ Catalog::Catalog() {
         Type{"pearl",   {atLeast(P::Clarity, 0.90), atLeast(P::Density, 0.70), atMost(P::Heat, 0.25)},
              M::Stone, 0.70, 24.0, true},
     };
+}
 
+void Catalog::finish() {
     // Most specific first; stable so catalog order breaks ties.
     std::stable_sort(types_.begin(), types_.end(), [](const Type& a, const Type& b) {
         return a.specificity() > b.specificity();
     });
-    plain_ = type("plain");
+    plainIndex_ = static_cast<std::size_t>(type("plain") - types_.data());
 }
 
 const Food* Catalog::food(std::string_view id) const {
@@ -171,7 +179,12 @@ const Type* Catalog::resolve(const PropertyValues& v, Material affinity) const {
     for (const auto& t : types_) {
         if (t.matches(v, affinity)) return &t;
     }
-    return plain_;
+    return &plain();
+}
+
+bool operator==(const Catalog& a, const Catalog& b) {
+    return a.foods() == b.foods() && a.habitats() == b.habitats() && a.jobs() == b.jobs() &&
+           a.types() == b.types();
 }
 
 } // namespace owlight

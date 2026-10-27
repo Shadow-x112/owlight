@@ -6,6 +6,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <vector>
@@ -332,6 +334,129 @@ TEST(signs_change_before_the_type_does) {
     }
     CHECK(became >= 0);
     CHECK(firstSign <= became);
+}
+
+// --- The catalog as data ------------------------------------------------------------------
+
+namespace {
+
+// Report which entry differs, so a mismatch points at the line to fix.
+template <class T>
+void checkSameEntries(const char* what, const std::vector<T>& loaded, const std::vector<T>& builtIn) {
+    CHECK(loaded.size() == builtIn.size());
+    for (std::size_t i = 0; i < loaded.size() && i < builtIn.size(); ++i) {
+        if (loaded[i] != builtIn[i])
+            std::printf("  %s #%zu differs: \"%s\" (data) vs \"%s\" (built in)\n", what, i,
+                        loaded[i].id.c_str(), builtIn[i].id.c_str());
+        CHECK(loaded[i] == builtIn[i]);
+    }
+}
+
+// A copy of data/ to break on purpose. Returns the directory.
+std::string scratchCopyOfData(const char* name) {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::path(OWLIGHT_TEST_SCRATCH) / name;
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    for (const char* f : {"foods.json", "habitats.json", "jobs.json", "types.json"})
+        fs::copy_file(fs::path(OWLIGHT_DATA_DIR) / f, dir / f);
+    return dir.string();
+}
+
+void replaceInFile(const std::string& path, const std::string& from, const std::string& to) {
+    std::ifstream in(path, std::ios::binary);
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+    const auto pos = text.find(from);
+    CHECK(pos != std::string::npos);
+    if (pos != std::string::npos) text.replace(pos, from.size(), to);
+    std::ofstream(path, std::ios::binary) << text;
+}
+
+} // namespace
+
+TEST(loaded_catalog_equals_the_built_in_one) {
+    // The numbers must not change by moving them into data/: exact equality, every field.
+    std::string err;
+    const auto loaded = Catalog::load(OWLIGHT_DATA_DIR, &err);
+    if (!loaded) std::printf("  load failed: %s\n", err.c_str());
+    CHECK(loaded.has_value());
+    if (!loaded) return;
+    const auto& b = Catalog::v1();
+    checkSameEntries("food", loaded->foods(), b.foods());
+    checkSameEntries("habitat", loaded->habitats(), b.habitats());
+    checkSameEntries("job", loaded->jobs(), b.jobs());
+    checkSameEntries("type", loaded->types(), b.types());
+    CHECK(*loaded == b);
+    CHECK_EQ_STR(loaded->plain().id, "plain");
+}
+
+TEST(the_first_morning_plays_the_same_from_data) {
+    const auto loaded = Catalog::load(OWLIGHT_DATA_DIR);
+    CHECK(loaded.has_value());
+    if (!loaded) return;
+    const auto& c = *loaded;
+    Slime fromData("a", rest(), c), builtIn("b", rest(), Catalog::v1());
+    runDays(fromData, 1, c.food("charcoal"), 3, c.habitat("pen"));
+    runDays(builtIn, 1, Catalog::v1().food("charcoal"), 3, Catalog::v1().habitat("pen"));
+    fromData.feed(*c.food("charcoal"), fromData.ageHours());
+    builtIn.feed(*Catalog::v1().food("charcoal"), builtIn.ageHours());
+    CHECK_EQ_STR(fromData.type()->id, "soot");
+    CHECK(fromData.values() == builtIn.values());
+    CHECK(fromData.journal().entries().size() == builtIn.journal().entries().size());
+}
+
+TEST(a_copied_catalog_still_resolves_types) {
+    // plain() is an index, not a pointer, so copies stay valid after the original is gone.
+    std::optional<Catalog> copy;
+    {
+        const auto loaded = Catalog::load(OWLIGHT_DATA_DIR);
+        CHECK(loaded.has_value());
+        if (!loaded) return;
+        copy = *loaded;
+    }
+    CHECK_EQ_STR(copy->plain().id, "plain");
+    PropertyValues v = rest();
+    CHECK_EQ_STR(copy->resolve(v, Material::None)->id, "plain");
+}
+
+TEST(a_typo_in_the_data_names_the_file_and_line) {
+    // Tuning is done by hand; a misspelt property must fail loudly, never load as zero.
+    const std::string dir = scratchCopyOfData("typo");
+    replaceInFile(dir + "/types.json", "\"density\": { \"min\": 0.70 }", "\"densty\": { \"min\": 0.70 }");
+    std::string err;
+    CHECK(!Catalog::load(dir, &err).has_value());
+    CHECK(err.find("types.json:3:") != std::string::npos);
+    CHECK(err.find("densty") != std::string::npos);
+    if (err.find("types.json:3:") == std::string::npos) std::printf("  error was: %s\n", err.c_str());
+}
+
+TEST(bad_data_is_rejected_with_a_reason) {
+    struct Case { const char* file; const char* from; const char* to; const char* expect; };
+    const Case cases[] = {
+        {"foods.json", "\"id\": \"grain\", \"per_feeding\"", "\"id\": \"grain\", \"per_feding\"", "unknown key \"per_feding\""},
+        {"foods.json", "\"material\": \"metal\"", "\"material\": \"iron\"", "unknown material \"iron\""},
+        {"foods.json", "\"id\": \"mushroom\"", "\"id\": \"grain\"", "duplicate id \"grain\""},
+        {"habitats.json", "\"daylight\": 0.6", "\"daylight\": 1.6", "\"daylight\" must be between"},
+        {"habitats.json", "\"loud\": true", "\"loud\": 1", "\"loud\" must be a boolean"},
+        {"jobs.json", "\"scout\", \"per_hour\"", "\"scout\" \"per_hour\"", "expected ',' or '}'"},
+        {"types.json", "{ \"id\": \"plain\", \"conditions\": {} },", "", "type with id \"plain\""},
+        {"types.json", "\"acidity\": { \"min\": 0.55, \"max\": 0.80 }", "\"acidity\": { \"min\": 0.85, \"max\": 0.80 }", "min above max"},
+        {"types.json", "\"material\": \"water\"", "\"material\": \"none\"", "unknown material \"none\""},
+    };
+    int n = 0;
+    for (const auto& k : cases) {
+        const std::string dir = scratchCopyOfData(("bad" + std::to_string(n++)).c_str());
+        replaceInFile(dir + "/" + k.file, k.from, k.to);
+        std::string err;
+        const bool loaded = Catalog::load(dir, &err).has_value();
+        const bool ok = !loaded && err.find(k.file) == 0 && err.find(k.expect) != std::string::npos;
+        if (!ok) std::printf("  %s: expected \"%s\", got \"%s\"\n", k.file, k.expect, err.c_str());
+        CHECK(ok);
+    }
+    std::string err;
+    CHECK(!Catalog::load(std::string(OWLIGHT_TEST_SCRATCH) + "/no_such_dir", &err).has_value());
+    CHECK(err.find("cannot open") != std::string::npos);
 }
 
 int main() {
