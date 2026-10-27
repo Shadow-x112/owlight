@@ -124,3 +124,23 @@ void ASlimeActor::ApplyLook(bool bSnap)
 		CoreMID->SetScalarParameterValue(TEXT("EmissiveScale"), EmissiveScale);
 	}
 }
+
+void ASlimeActor::PickUp(AActor* NewCarrier)
+{
+	if (!NewCarrier) return;
+	Carrier = NewCarrier;
+	Shell->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	AttachToActor(NewCarrier, FAttachmentTransformRules::KeepWorldTransform);
+	SetActorRelativeLocation(FVector(55.f, 0.f, -20.f));
+	SetActorRelativeRotation(FRotator::ZeroRotator);
+	if (Slime) Slime->PickUp();
+}
+
+void ASlimeActor::PutDown(const FVector& GroundLocation)
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	Carrier = nullptr;
+	SetActorLocation(GroundLocation);
+	SetActorRotation(FRotator(0.f, GetActorRotation().Yaw, 0.f));
+	Shell->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+}

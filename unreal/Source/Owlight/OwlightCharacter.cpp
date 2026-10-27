@@ -3,19 +3,23 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "FoodStockActor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Owlight.h"
+#include "SlimeActor.h"
+#include "SlimeComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 AOwlightCharacter::AOwlightCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	GetCapsuleComponent()->InitCapsuleSize(28.f, 70.f);
 
@@ -74,22 +78,32 @@ AOwlightCharacter::AOwlightCharacter()
 void AOwlightCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
 	CameraBoom->TargetArmLength = CameraDistance;
 	CameraBoom->SetWorldRotation(FRotator(CameraPitch, CameraYaw, 0.f));
 	Camera->SetFieldOfView(CameraFOV);
-
+	ApplyDevTimeScale();
 }
+
+void AOwlightCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	UpdateFocus();
+}
+
+// ---- input --------------------------------------------------------------------------------
 
 void AOwlightCharacter::EnsureInputAssets()
 {
 	if (MappingContext) return;
-	// Input assets built in code: WASD / arrows / left stick -> 2D move axis.
 	MoveAction = NewObject<UInputAction>(this, TEXT("IA_Move"));
 	MoveAction->ValueType = EInputActionValueType::Axis2D;
+	InteractAction = NewObject<UInputAction>(this, TEXT("IA_Interact"));
+	FeedAction = NewObject<UInputAction>(this, TEXT("IA_Feed"));
+	CycleFoodAction = NewObject<UInputAction>(this, TEXT("IA_CycleFood"));
+	DevTimeAction = NewObject<UInputAction>(this, TEXT("IA_DevTime"));
 
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Owlight"));
-	auto MapKey = [this](const FKey& Key, bool bSwizzle, bool bNegate)
+	auto MapMove = [this](const FKey& Key, bool bSwizzle, bool bNegate)
 	{
 		FEnhancedActionKeyMapping& M = MappingContext->MapKey(MoveAction, Key);
 		if (bSwizzle)
@@ -98,45 +112,47 @@ void AOwlightCharacter::EnsureInputAssets()
 			Swz->Order = EInputAxisSwizzle::YXZ;
 			M.Modifiers.Add(Swz);
 		}
-		if (bNegate)
-		{
-			M.Modifiers.Add(NewObject<UInputModifierNegate>(this));
-		}
+		if (bNegate) M.Modifiers.Add(NewObject<UInputModifierNegate>(this));
 	};
 	// Action value: X = forward/back, Y = right/left. Swizzle moves a key onto Y.
-	MapKey(EKeys::W, false, false);
-	MapKey(EKeys::S, false, true);
-	MapKey(EKeys::Up, false, false);
-	MapKey(EKeys::Down, false, true);
-	MapKey(EKeys::D, true, false);
-	MapKey(EKeys::A, true, true);
-	MapKey(EKeys::Right, true, false);
-	MapKey(EKeys::Left, true, true);
-	// Gamepad: stick Y is forward (X of our value), stick X is right (Y of our value).
-	MapKey(EKeys::Gamepad_LeftY, false, false);
-	MapKey(EKeys::Gamepad_LeftX, true, false);
+	MapMove(EKeys::W, false, false);  MapMove(EKeys::S, false, true);
+	MapMove(EKeys::Up, false, false); MapMove(EKeys::Down, false, true);
+	MapMove(EKeys::D, true, false);   MapMove(EKeys::A, true, true);
+	MapMove(EKeys::Right, true, false); MapMove(EKeys::Left, true, true);
+	MapMove(EKeys::Gamepad_LeftY, false, false);
+	MapMove(EKeys::Gamepad_LeftX, true, false);
 
+	MappingContext->MapKey(InteractAction, EKeys::E);
+	MappingContext->MapKey(InteractAction, EKeys::Gamepad_FaceButton_Bottom);
+	MappingContext->MapKey(FeedAction, EKeys::F);
+	MappingContext->MapKey(FeedAction, EKeys::Gamepad_FaceButton_Left);
+	MappingContext->MapKey(CycleFoodAction, EKeys::Q);
+	MappingContext->MapKey(CycleFoodAction, EKeys::Gamepad_FaceButton_Top);
+	MappingContext->MapKey(DevTimeAction, EKeys::T);
+	MappingContext->MapKey(DevTimeAction, EKeys::Gamepad_Special_Right);
 }
 
 void AOwlightCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent))
-	{
-		EnsureInputAssets();
-		EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AOwlightCharacter::Move);
-		if (APlayerController* PC = Cast<APlayerController>(GetController()))
-		{
-			if (UEnhancedInputLocalPlayerSubsystem* Sub =
-					ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-			{
-				Sub->AddMappingContext(MappingContext, 0);
-			}
-		}
-	}
-	else
+	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EIC)
 	{
 		UE_LOG(LogOwlight, Warning, TEXT("Owlight needs the Enhanced Input component as the default input component."));
+		return;
+	}
+	EnsureInputAssets();
+	EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AOwlightCharacter::Move);
+	EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &AOwlightCharacter::Interact);
+	EIC->BindAction(FeedAction, ETriggerEvent::Started, this, &AOwlightCharacter::FeedSelected);
+	EIC->BindAction(CycleFoodAction, ETriggerEvent::Started, this, &AOwlightCharacter::CycleFood);
+	EIC->BindAction(DevTimeAction, ETriggerEvent::Started, this, &AOwlightCharacter::CycleDevTime);
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Sub = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+		{
+			Sub->AddMappingContext(MappingContext, 0);
+		}
 	}
 }
 
@@ -144,8 +160,111 @@ void AOwlightCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();   // X = forward, Y = right, relative to the camera's fixed yaw
 	const FRotator YawRot(0.f, CameraYaw, 0.f);
-	const FVector Forward = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
-	const FVector Right = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
-	AddMovementInput(Forward, Axis.X);
-	AddMovementInput(Right, Axis.Y);
+	AddMovementInput(FRotationMatrix(YawRot).GetUnitAxis(EAxis::X), Axis.X);
+	AddMovementInput(FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y), Axis.Y);
+}
+
+// ---- hands --------------------------------------------------------------------------------
+
+void AOwlightCharacter::UpdateFocus()
+{
+	FocusSlime = nullptr; FocusStock = nullptr;
+	if (Carried) return;   // hands full: the prompt is "put down"
+	const FVector Me = GetActorLocation();
+	const FVector Fwd = GetActorForwardVector();
+	float Best = Reach;
+	for (TActorIterator<ASlimeActor> It(GetWorld()); It; ++It)
+	{
+		const FVector D = It->GetActorLocation() - Me;
+		const float Dist = D.Size2D();
+		// in reach and roughly in front (or very close)
+		if (Dist < Best && (Dist < 60.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusSlime = *It; }
+	}
+	for (TActorIterator<AFoodStockActor> It(GetWorld()); It; ++It)
+	{
+		const FVector D = It->GetActorLocation() - Me;
+		const float Dist = D.Size2D();
+		if (Dist < Best && (Dist < 60.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusStock = *It; FocusSlime = nullptr; }
+	}
+}
+
+void AOwlightCharacter::Interact()
+{
+	if (Carried)
+	{
+		// set it down just ahead, on the ground
+		const FVector Start = GetActorLocation() + GetActorForwardVector() * 70.f + FVector(0, 0, 50.f);
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(PutDown), false, this);
+		Params.AddIgnoredActor(Carried);
+		FVector Ground = Start - FVector(0, 0, 200.f);
+		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, Ground, ECC_Visibility, Params)) Ground = Hit.Location;
+		Carried->PutDown(Ground);
+		Carried = nullptr;
+		return;
+	}
+	if (FocusStock)
+	{
+		const FName Food = FocusStock->FoodId;
+		AddFood(Food, FocusStock->Take());
+		return;
+	}
+	if (FocusSlime)
+	{
+		Carried = FocusSlime;
+		Carried->PickUp(this);
+		FocusSlime = nullptr;
+	}
+}
+
+void AOwlightCharacter::FeedSelected()
+{
+	ASlimeActor* Target = Carried ? Carried.Get() : FocusSlime.Get();
+	if (!Target || SelectedFood.IsNone()) return;
+	int32* Count = Pockets.Find(SelectedFood);
+	if (!Count || *Count <= 0) return;
+	if (Target->Slime->Feed(SelectedFood))
+	{
+		if (--(*Count) <= 0) { Pockets.Remove(SelectedFood); CycleFood(); }
+	}
+}
+
+void AOwlightCharacter::CycleFood()
+{
+	TArray<FName> Keys; Pockets.GetKeys(Keys);
+	if (Keys.Num() == 0) { SelectedFood = NAME_None; return; }
+	Keys.Sort(FNameLexicalLess());
+	const int32 i = Keys.IndexOfByKey(SelectedFood);
+	SelectedFood = Keys[(i + 1) % Keys.Num()];
+}
+
+void AOwlightCharacter::AddFood(FName FoodId, int32 Count)
+{
+	if (Count <= 0) return;
+	Pockets.FindOrAdd(FoodId) += Count;
+	if (SelectedFood.IsNone()) SelectedFood = FoodId;
+}
+
+void AOwlightCharacter::CycleDevTime()
+{
+	DevTimeScale = DevTimeScale < 30.f ? 60.f : (DevTimeScale < 1000.f ? 3600.f : 1.f);
+	ApplyDevTimeScale();
+}
+
+void AOwlightCharacter::ApplyDevTimeScale()
+{
+	for (TActorIterator<ASlimeActor> It(GetWorld()); It; ++It) It->Slime->TimeScale = DevTimeScale;
+}
+
+FText AOwlightCharacter::PromptText() const
+{
+	if (Carried) return FText::FromString(FString::Printf(TEXT("E  put %s down"), *Carried->Slime->SlimeName));
+	if (FocusStock) return FText::FromString(FString::Printf(TEXT("E  take %s"), *FocusStock->Label().ToString()));
+	if (FocusSlime)
+	{
+		FString S = FString::Printf(TEXT("E  pick up %s"), *FocusSlime->Slime->SlimeName);
+		if (!SelectedFood.IsNone()) S += FString::Printf(TEXT("     F  feed %s"), *SelectedFood.ToString().Replace(TEXT("_"), TEXT(" ")));
+		return FText::FromString(S);
+	}
+	return FText::GetEmpty();
 }

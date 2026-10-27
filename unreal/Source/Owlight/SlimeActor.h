@@ -45,12 +45,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Slime|Look")
 	FLinearColor ColorForType(FName TypeId) const;
 
+	/** Picked up by hand: rides in front of the carrier; tells the sim (bond, boldness). */
+	UFUNCTION(BlueprintCallable, Category = "Slime")
+	void PickUp(AActor* Carrier);
+
+	/** Set down on the ground at this spot. */
+	UFUNCTION(BlueprintCallable, Category = "Slime")
+	void PutDown(const FVector& GroundLocation);
+
+	UFUNCTION(BlueprintPure, Category = "Slime")
+	bool IsCarried() const { return Carrier != nullptr; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	void ApplyLook(bool bSnap);
 
+	UPROPERTY(Transient) TObjectPtr<AActor> Carrier;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> ShellMID;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> CoreMID;
 
