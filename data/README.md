@@ -1,9 +1,21 @@
 # Catalog data
 
-The v1 catalog as plain JSON, read by `owlight::Catalog::load("data")`. Same numbers as the
-built-in `Catalog::v1()` in `sim/src/Catalog.cpp`; the test `loaded_catalog_equals_the_built_in_one`
-fails if the two disagree, so a tuning change goes in both. Design intent for every entry is in
-`docs/design.md` §5–6.
+The v1 catalog as plain JSON. **These files are the only copy of the numbers.** `Catalog::load("data")`
+reads them from disk; `Catalog::v1()` parses copies that CMake embeds at build time, so the shipped
+game needs no files and can never drift from this directory. Edit here, rebuild, done. Design intent
+for every entry is in `docs/design.md` §5–6.
+
+## Scale
+
+- Every property lives in `[0, 1]` and **rests at 0.5**. Drift pulls each value back toward 0.5 at
+  1% of its distance per hour, so a value at 0.7 loses about 0.05 a day untended, and one at 0.9
+  about 0.1 a day. Extremes fade faster than mild ones.
+- Food deltas are **per feeding**; a slime is fed about three times a day. Charcoal's `clarity: -0.09`
+  means three feedings pull clarity down by ~0.27 before drift.
+- Habitat and job deltas are **per hour**; a slime spends ~24 h/day in a habitat and up to 24 h/day
+  on a job. `0.004/h` is ~0.1 a day, enough to move a property a full band in a few days.
+- Type thresholds are inclusive. The first-day test (`a_day_of_charcoal_makes_a_soot_slime_by_morning`)
+  pins the feel: three charcoal feedings on day 1 are not enough; the morning feeding of day 2 is.
 
 Each file is an array of entries with a unique `"id"`. Any entry may carry a `"note"` (ignored by the
 loader; JSON has no comments). Unknown keys, properties and materials are errors that name the

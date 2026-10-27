@@ -9,12 +9,13 @@ PRs — propose changes in `docs/design.md` §11 instead.
 - `docs/design.md` — the design document (settled decisions, v1 scope, build order).
 - `sim/` — the simulation core: standalone C++17, **no engine dependency, no third-party deps**.
   - `sim/include/owlight/` — public headers.
-  - `sim/src/` — implementation. `Catalog.cpp` holds the built-in v1 foods, habitats, jobs and type
-    thresholds (`Catalog::v1()`); `CatalogLoad.cpp` + `Json.*` read the same catalog from `data/`.
+  - `sim/src/` — implementation. `CatalogLoad.cpp` + `Json.*` parse the catalog; `Catalog.cpp`
+    holds no numbers. `Catalog::v1()` parses `data/*.json` embedded at build time
+    (`EmbeddedData.cpp.in`), so the shipped catalog needs no files on disk.
   - `sim/tools/owlight_sim.cpp` — CLI harness for running scenarios ("feed charcoal for 7 days").
   - `sim/tests/` — tests, run with `ctest`.
-- `data/` — the catalog as JSON (`Catalog::load("data")`), format in `data/README.md`. Must equal
-  `Catalog.cpp` exactly; a test enforces it, so tune both together.
+- `data/` — **the only copy of the numbers**: foods, habitats, jobs, types as JSON. Format and
+  scale notes in `data/README.md`. Tune here; a plain rebuild re-embeds it.
 - Unreal project lives on the owner's PC, not in this repo (yet).
 
 ## Build

@@ -29,16 +29,9 @@ public:
     }
     bool fail(const Value& at, const std::string& msg) { return fail(at.line, msg); }
 
-    bool parseFile(const std::string& path, Value& out) {
-        std::ifstream in(path, std::ios::binary);
-        if (!in) {
-            error_ = "cannot open " + path;
-            return false;
-        }
-        std::ostringstream text;
-        text << in.rdbuf();
+    bool parseText(const std::string& text, Value& out) {
         json::Error err;
-        if (!json::parse(text.str(), out, err)) return fail(err.line, err.message);
+        if (!json::parse(text, out, err)) return fail(err.line, err.message);
         return true;
     }
 
@@ -151,12 +144,28 @@ constexpr double kBig = 1e9;
 } // namespace
 
 std::optional<Catalog> Catalog::load(const std::string& dir, std::string* error) {
-    Catalog c;
     auto path = [&](const char* file) {
         if (dir.empty()) return std::string(file);
         const char last = dir.back();
         return (last == '/' || last == '\\') ? dir + file : dir + "/" + file;
     };
+    CatalogTexts texts;
+    for (auto [file, slot] : {std::pair{"foods.json", &texts.foods}, std::pair{"habitats.json", &texts.habitats},
+                              std::pair{"jobs.json", &texts.jobs}, std::pair{"types.json", &texts.types}}) {
+        std::ifstream in(path(file), std::ios::binary);
+        if (!in) {
+            if (error) *error = "cannot open " + path(file);
+            return std::nullopt;
+        }
+        std::ostringstream text;
+        text << in.rdbuf();
+        *slot = text.str();
+    }
+    return fromTexts(texts, error);
+}
+
+std::optional<Catalog> Catalog::fromTexts(const CatalogTexts& texts, std::string* error) {
+    Catalog c;
     auto failed = [&](const Reader& r) -> std::optional<Catalog> {
         if (error) *error = r.error();
         return std::nullopt;
@@ -165,7 +174,7 @@ std::optional<Catalog> Catalog::load(const std::string& dir, std::string* error)
     {
         Reader r("foods.json");
         Value root;
-        const bool ok = r.parseFile(path("foods.json"), root) &&
+        const bool ok = r.parseText(texts.foods, root) &&
             r.entries(root, c.foods_, [&](const Value& e, Food& f) {
                 return r.onlyKeys(e, {"id", "note", "per_feeding", "material", "exposure_hours"},
                                   "food \"" + f.id + "\"") &&
@@ -178,7 +187,7 @@ std::optional<Catalog> Catalog::load(const std::string& dir, std::string* error)
     {
         Reader r("habitats.json");
         Value root;
-        const bool ok = r.parseFile(path("habitats.json"), root) &&
+        const bool ok = r.parseText(texts.habitats, root) &&
             r.entries(root, c.habitats_, [&](const Value& e, Habitat& h) {
                 return r.onlyKeys(e, {"id", "note", "per_hour", "material", "daylight", "loud"},
                                   "habitat \"" + h.id + "\"") &&
@@ -192,7 +201,7 @@ std::optional<Catalog> Catalog::load(const std::string& dir, std::string* error)
     {
         Reader r("jobs.json");
         Value root;
-        const bool ok = r.parseFile(path("jobs.json"), root) &&
+        const bool ok = r.parseText(texts.jobs, root) &&
             r.entries(root, c.jobs_, [&](const Value& e, Job& j) {
                 return r.onlyKeys(e, {"id", "note", "per_hour", "material"}, "job \"" + j.id + "\"") &&
                        r.deltas(e, "per_hour", j.perHour) &&
@@ -203,7 +212,7 @@ std::optional<Catalog> Catalog::load(const std::string& dir, std::string* error)
     {
         Reader r("types.json");
         Value root;
-        const bool ok = r.parseFile(path("types.json"), root) &&
+        const bool ok = r.parseText(texts.types, root) &&
             r.entries(root, c.types_, [&](const Value& e, Type& t) {
                 const std::string where = "type \"" + t.id + "\"";
                 if (!r.onlyKeys(e, {"id", "note", "conditions", "material", "min_affinity",

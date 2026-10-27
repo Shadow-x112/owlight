@@ -1,7 +1,6 @@
 #pragma once
-// The catalog: foods, habitats, jobs, types. The game loads it from the data files in `data/`
-// (Catalog::load); Catalog::v1() is the same catalog built in, used as the fallback and by tests.
-// A test keeps the two identical, number for number.
+// The catalog: foods, habitats, jobs, types. The numbers live in `data/*.json` and nowhere else.
+// Catalog::load reads them from a directory; Catalog::v1() parses copies embedded at build time.
 
 #include "owlight/Nudges.h"
 #include "owlight/Types.h"
@@ -13,9 +12,19 @@
 
 namespace owlight {
 
+// The four data files as text. Catalog::load reads them from disk; Catalog::v1 uses copies of
+// the same files embedded at build time, so there is exactly one set of numbers.
+struct CatalogTexts {
+    std::string foods, habitats, jobs, types;
+};
+
 class Catalog {
 public:
+    // The shipped catalog, built from data/*.json embedded at build time. Needs no files on disk.
     static const Catalog& v1();
+
+    // Parse a catalog from the texts of the four data files.
+    static std::optional<Catalog> fromTexts(const CatalogTexts& texts, std::string* error = nullptr);
 
     // Load from a directory holding foods.json, habitats.json, jobs.json and types.json.
     // On failure returns nullopt and, if `error` is given, a message naming the file and line.
@@ -38,7 +47,6 @@ public:
 
 private:
     Catalog() = default;
-    void fillBuiltIn();   // the v1 numbers, in Catalog.cpp
     void finish();   // sorts types most specific first; requires a "plain" type
 
     std::vector<Food> foods_;
