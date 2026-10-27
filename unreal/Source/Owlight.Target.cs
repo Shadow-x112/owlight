@@ -8,6 +8,6 @@ public class OwlightTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
-		ExtraModuleNames.Add("Owlight");
+		ExtraModuleNames.AddRange(new string[] { "Owlight", "OwlightSim" });
 	}
 }

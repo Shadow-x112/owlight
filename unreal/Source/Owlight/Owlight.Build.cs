@@ -11,7 +11,8 @@ public class Owlight : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"EnhancedInput"
+			"EnhancedInput",
+			"OwlightSim"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
