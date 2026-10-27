@@ -33,4 +33,16 @@ struct Type {
     double distance(const PropertyValues& v, Material affinityMaterial) const;
 };
 
+// Exact comparisons, number for number (see Catalog's operator==).
+inline bool operator==(const Condition& a, const Condition& b) {
+    return a.property == b.property && a.min == b.min && a.max == b.max;
+}
+inline bool operator!=(const Condition& a, const Condition& b) { return !(a == b); }
+inline bool operator==(const Type& a, const Type& b) {
+    return a.id == b.id && a.conditions == b.conditions && a.material == b.material &&
+           a.minAffinity == b.minAffinity && a.lockAfterHours == b.lockAfterHours &&
+           a.rare == b.rare;
+}
+inline bool operator!=(const Type& a, const Type& b) { return !(a == b); }
+
 } // namespace owlight

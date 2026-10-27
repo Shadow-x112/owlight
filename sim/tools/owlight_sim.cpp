@@ -3,6 +3,7 @@
 //   owlight_sim --days 7 --feed charcoal
 //   owlight_sim --days 14 --feed iron_scrap --habitat cold_cave --hidden
 //   owlight_sim --days 3 --feed grain:1 --feed mushroom:2 --job clean_house --near
+//   owlight_sim --data data --days 7 --feed charcoal      (catalog from the data files)
 //
 // Feedings are spread across the daytime. Day is 06:00–20:00. Everything else is the sim.
 
@@ -12,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,16 +30,17 @@ struct Options {
     bool showHidden = false;
     bool quiet = false;
     unsigned seed = 0;
+    std::string dataDir;   // empty = built-in catalog
+    bool list = false;
 };
 
 void usage() {
     std::puts(
         "usage: owlight_sim [--days N] [--feed FOOD[:PER_DAY]]... [--habitat ID] [--job ID]\n"
-        "                   [--near] [--hidden] [--quiet] [--seed N] [--list]\n");
+        "                   [--near] [--hidden] [--quiet] [--seed N] [--data DIR] [--list]\n");
 }
 
-void listCatalog() {
-    const auto& c = Catalog::v1();
+void listCatalog(const Catalog& c) {
     std::puts("foods:");
     for (const auto& f : c.foods()) std::printf("  %s\n", f.id.c_str());
     std::puts("habitats:");
@@ -90,11 +93,19 @@ int main(int argc, char** argv) {
         else if (a == "--hidden") opt.showHidden = true;
         else if (a == "--quiet") opt.quiet = true;
         else if (a == "--seed") opt.seed = static_cast<unsigned>(std::atoi(next("--seed")));
-        else if (a == "--list") { listCatalog(); return 0; }
+        else if (a == "--data") opt.dataDir = next("--data");
+        else if (a == "--list") opt.list = true;
         else { usage(); return 2; }
     }
 
-    const auto& cat = Catalog::v1();
+    std::optional<Catalog> loaded;
+    if (!opt.dataDir.empty()) {
+        std::string err;
+        loaded = Catalog::load(opt.dataDir, &err);
+        if (!loaded) { std::fprintf(stderr, "%s\n", err.c_str()); return 2; }
+    }
+    const Catalog& cat = loaded ? *loaded : Catalog::v1();
+    if (opt.list) { listCatalog(cat); return 0; }
     const Habitat* habitat = cat.habitat(opt.habitat);
     if (!habitat) { std::fprintf(stderr, "unknown habitat: %s\n", opt.habitat.c_str()); return 2; }
     const Job* job = nullptr;

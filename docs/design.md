@@ -106,7 +106,7 @@ reverts after a grace period — *unless* the type is marked locked-in.
 
 ## 6. v1 type list (subject to tuning, not to redesign)
 
-Thresholds are listed in `sim/src/Catalog.cpp` and are the source of truth; this table describes intent.
+Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) and are the source of truth; this table describes intent.
 
 | Type | Key conditions | What it does |
 |------|----------------|--------------|

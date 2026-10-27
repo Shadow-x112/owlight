@@ -34,4 +34,20 @@ struct Job {
     Material material = Material::None;   // what it handles while working
 };
 
+// Exact comparisons, number for number (see Catalog's operator==).
+inline bool operator==(const Food& a, const Food& b) {
+    return a.id == b.id && a.perFeeding == b.perFeeding && a.material == b.material &&
+           a.materialExposureHours == b.materialExposureHours;
+}
+inline bool operator==(const Habitat& a, const Habitat& b) {
+    return a.id == b.id && a.perHour == b.perHour && a.material == b.material &&
+           a.daylight == b.daylight && a.loud == b.loud;
+}
+inline bool operator==(const Job& a, const Job& b) {
+    return a.id == b.id && a.perHour == b.perHour && a.material == b.material;
+}
+inline bool operator!=(const Food& a, const Food& b) { return !(a == b); }
+inline bool operator!=(const Habitat& a, const Habitat& b) { return !(a == b); }
+inline bool operator!=(const Job& a, const Job& b) { return !(a == b); }
+
 } // namespace owlight

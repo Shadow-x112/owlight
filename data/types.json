@@ -1,0 +1,16 @@
+[
+  { "id": "plain", "conditions": {} },
+  { "id": "soot", "note": "The first-morning payoff: a day of charcoal, tipped over by the morning feeding.", "conditions": { "density": { "min": 0.70 }, "clarity": { "max": 0.25 }, "acidity": { "min": 0.50 } } },
+  { "id": "brook", "conditions": { "clarity": { "min": 0.65 }, "heat": { "max": 0.40 } }, "material": "water", "min_affinity": 0.50 },
+  { "id": "lantern", "note": "A brook slime kept in the dark long enough. More specific than brook, so it wins.", "conditions": { "clarity": { "min": 0.80 }, "light": { "max": 0.30 }, "heat": { "max": 0.40 } }, "material": "water", "min_affinity": 0.60, "lock_after_hours": 168.0 },
+  { "id": "forge", "conditions": { "heat": { "min": 0.75 }, "density": { "min": 0.65 } }, "material": "metal", "min_affinity": 0.60, "lock_after_hours": 168.0 },
+  { "id": "frost", "conditions": { "heat": { "max": 0.20 }, "density": { "min": 0.55 } } },
+  { "id": "loam", "conditions": { "acidity": { "min": 0.55, "max": 0.80 }, "density": { "min": 0.55 } }, "material": "wood", "min_affinity": 0.50 },
+  { "id": "moss", "conditions": { "light": { "max": 0.40 }, "clarity": { "max": 0.45 } }, "material": "wood", "min_affinity": 0.50 },
+  { "id": "scrub", "conditions": { "acidity": { "min": 0.70 }, "memory": { "min": 0.65 } } },
+  { "id": "puff", "conditions": { "density": { "max": 0.30 }, "boldness": { "min": 0.65 } } },
+  { "id": "shade", "conditions": { "boldness": { "max": 0.20 }, "light": { "max": 0.30 } } },
+  { "id": "glutton", "conditions": { "appetite": { "min": 0.85 } } },
+  { "id": "steady", "conditions": { "memory": { "min": 0.85 } } },
+  { "id": "pearl", "note": "Rare: needs the cold cave and a stone diet for a long time.", "conditions": { "clarity": { "min": 0.90 }, "density": { "min": 0.70 }, "heat": { "max": 0.25 } }, "material": "stone", "min_affinity": 0.70, "lock_after_hours": 24.0, "rare": true }
+]

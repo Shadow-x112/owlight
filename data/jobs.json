@@ -1,0 +1,9 @@
+[
+  { "id": "clean_house", "per_hour": { "acidity": 0.002 }, "material": "cloth" },
+  { "id": "scrub_stove", "per_hour": { "acidity": 0.002, "density": 0.001, "clarity": -0.002 }, "material": "metal" },
+  { "id": "tend_garden", "per_hour": { "acidity": 0.001 }, "material": "wood" },
+  { "id": "carry_water", "per_hour": { "clarity": 0.002 }, "material": "water" },
+  { "id": "forge_assist", "per_hour": { "heat": 0.004, "density": 0.001 }, "material": "metal" },
+  { "id": "scout", "per_hour": { "boldness": 0.003 } },
+  { "id": "fetch", "per_hour": { "boldness": 0.002 } }
+]
