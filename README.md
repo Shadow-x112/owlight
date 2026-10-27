@@ -9,7 +9,8 @@ Design: [`docs/design.md`](docs/design.md). Notes for coding sessions: [`CLAUDE.
 
 ## The simulation core (`sim/`)
 
-Standalone C++17, no engine, no dependencies. Unreal wraps it later.
+Standalone C++17, no engine, no dependencies. Unreal calls it through the C interface in
+`sim/include/owlight/owlight_c.h` (opaque handles, string ids, no C++ types across the boundary).
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

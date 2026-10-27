@@ -23,6 +23,7 @@ add_library(owlight_sim STATIC
   src/Slime.cpp
   src/Scenario.cpp
   src/SlimeSave.cpp
+  src/owlight_c.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedData.cpp"
 )
 target_include_directories(owlight_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -44,3 +45,11 @@ target_compile_definitions(owlight_tests PRIVATE
   OWLIGHT_SCENARIO_DIR="${PROJECT_SOURCE_DIR}/scenarios"
   OWLIGHT_TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test_scratch")
 add_test(NAME owlight_tests COMMAND owlight_tests)
+
+# The C interface, compiled as plain C so the header is proven to be real C.
+add_executable(owlight_c_api_smoke tests/c_api_smoke.c)
+target_link_libraries(owlight_c_api_smoke PRIVATE owlight_sim)
+if(NOT MSVC)
+  target_compile_options(owlight_c_api_smoke PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+add_test(NAME owlight_c_api_smoke COMMAND owlight_c_api_smoke)

@@ -169,11 +169,12 @@ Thresholds are listed in `data/types.json` (mirrored in `sim/src/Catalog.cpp`) a
 3. **Scenarios**: scripted day-by-day files (`scenarios/`); the first day (§8) replays exactly
    and is pinned by a test. *Done.*
 4. **Save/load**: a slime's full state as JSON, exact to the bit; survives catalog changes. *Done.*
-   Still to do in the core before Unreal: a C API shim. ← *current*
-5. **Style proof** in Unreal: one slime, one forest floor, the pixel post-process.
-6. **Unreal project**: third-person character, pens, hut, sim library wrapped in Blueprints.
-7. The first day, playable end to end.
-8. Town, villagers, museum.
+5. **C API** (`sim/include/owlight/owlight_c.h`): opaque handles, ids as strings, no C++ types
+   across the boundary; proven from plain C by a test. *Done.* The core is complete for v1.
+6. **Style proof** in Unreal ← *current*: one slime, one forest floor, the pixel post-process.
+7. **Unreal project**: third-person character, pens, hut, sim library wrapped in Blueprints.
+8. The first day, playable end to end.
+9. Town, villagers, museum.
 
 ## 11. Open decisions
 

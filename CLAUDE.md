@@ -13,6 +13,8 @@ PRs — propose changes in `docs/design.md` §11 instead.
     holds no numbers. `Catalog::v1()` parses `data/*.json` embedded at build time
     (`EmbeddedData.cpp.in`), so the shipped catalog needs no files on disk.
   - `sim/src/SlimeSave.cpp` — `Slime::save()`/`Slime::load()`: full state as JSON, by id, exact.
+  - `sim/include/owlight/owlight_c.h` + `src/owlight_c.cpp` — the C interface Unreal calls.
+    `tests/c_api_smoke.c` is compiled as plain C and runs the first day through it.
   - `sim/tools/owlight_sim.cpp` — CLI harness ("feed charcoal for 7 days", `--scenario FILE`,
     `--save`/`--load`).
 - `scenarios/` — scripted scenarios (format in `sim/include/owlight/Scenario.h`). `first_day.json`
