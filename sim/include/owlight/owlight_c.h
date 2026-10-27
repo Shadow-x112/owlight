@@ -30,11 +30,17 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32) && defined(OWLIGHT_SHARED)
-#  ifdef OWLIGHT_BUILD
-#    define OWL_API __declspec(dllexport)
+/* Define OWLIGHT_SHARED when the core is built or used as a shared library (Unreal's modular
+   editor builds do this), and OWLIGHT_BUILD inside the library itself. */
+#if defined(OWLIGHT_SHARED)
+#  if defined(_WIN32)
+#    ifdef OWLIGHT_BUILD
+#      define OWL_API __declspec(dllexport)
+#    else
+#      define OWL_API __declspec(dllimport)
+#    endif
 #  else
-#    define OWL_API __declspec(dllimport)
+#    define OWL_API __attribute__((visibility("default")))
 #  endif
 #else
 #  define OWL_API

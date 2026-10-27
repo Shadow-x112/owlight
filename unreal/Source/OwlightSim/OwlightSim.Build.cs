@@ -9,12 +9,15 @@ public class OwlightSim : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.NoPCHs;
 		bUseUnity = false;
-		CppStandard = CppStandardVersion.Cpp17;
 
 		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "sim", "include"));
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "sim", "src"));
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core" });
+
+		// The C interface is exported from this module's DLL in modular builds.
+		PublicDefinitions.Add("OWLIGHT_SHARED=1");
+		PrivateDefinitions.Add("OWLIGHT_BUILD=1");
 
 		// The core is plain C++; keep the engine's macros out of it.
 		bEnableExceptions = false;
