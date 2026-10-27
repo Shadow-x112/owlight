@@ -21,6 +21,7 @@ add_library(owlight_sim STATIC
   src/CatalogLoad.cpp
   src/Json.cpp
   src/Slime.cpp
+  src/Scenario.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedData.cpp"
 )
 target_include_directories(owlight_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -39,5 +40,6 @@ add_executable(owlight_tests tests/test_main.cpp)
 target_link_libraries(owlight_tests PRIVATE owlight_sim)
 target_compile_definitions(owlight_tests PRIVATE
   OWLIGHT_DATA_DIR="${OWLIGHT_DATA_DIR}"
+  OWLIGHT_SCENARIO_DIR="${PROJECT_SOURCE_DIR}/scenarios"
   OWLIGHT_TEST_SCRATCH="${CMAKE_CURRENT_BINARY_DIR}/test_scratch")
 add_test(NAME owlight_tests COMMAND owlight_tests)

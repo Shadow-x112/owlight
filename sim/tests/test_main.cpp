@@ -2,6 +2,7 @@
 // Each test encodes a design promise from docs/design.md, not an implementation detail.
 
 #include "owlight/Catalog.h"
+#include "owlight/Scenario.h"
 #include "owlight/Slime.h"
 
 #include <cmath>
@@ -457,6 +458,97 @@ TEST(bad_data_is_rejected_with_a_reason) {
     std::string err;
     CHECK(!Catalog::load(std::string(OWLIGHT_TEST_SCRATCH) + "/no_such_dir", &err).has_value());
     CHECK(err.find("cannot open") != std::string::npos);
+}
+
+// --- Scenarios ------------------------------------------------------------------------------
+
+TEST(the_first_day_scenario_file_plays_as_designed) {
+    // scenarios/first_day.json is docs/design.md §8 as a script, with expectations inline.
+    const auto& c = Catalog::v1();
+    std::string err;
+    auto sc = Scenario::loadFile(std::string(OWLIGHT_SCENARIO_DIR) + "/first_day.json", c, &err);
+    CHECK(sc.has_value());
+    if (!sc) { std::printf("  %s\n", err.c_str()); return; }
+    Slime s = makeScenarioSlime(*sc, c);
+    const ScenarioResult r = runScenario(*sc, c, s);
+    for (const auto& f : r.failures) std::printf("  line %d: %s\n", f.line, f.message.c_str());
+    CHECK(r.ok());
+    CHECK_EQ_STR(s.name(), "Cinder");
+    CHECK_EQ_STR(s.type()->id, "soot");
+    CHECK(journalHas(s, EntryKind::Became, "soot"));
+    CHECK(journalHas(s, EntryKind::Moved, "stove_corner"));
+    CHECK(journalHas(s, EntryKind::Assigned, "scrub_stove"));
+}
+
+TEST(a_scenario_reports_a_missed_expectation_instead_of_passing) {
+    const auto& c = Catalog::v1();
+    std::string err;
+    auto sc = Scenario::parse(R"({
+        "end": "day 1 12:00",
+        "steps": [ { "at": "day 1 08:00", "feed": "grain" },
+                   { "at": "day 1 10:00", "expect": { "type": "soot" } } ] })", c, &err);
+    CHECK(sc.has_value());
+    if (!sc) return;
+    Slime s = makeScenarioSlime(*sc, c);
+    const ScenarioResult r = runScenario(*sc, c, s);
+    CHECK(!r.ok());
+    CHECK(r.failures.size() == 1);
+    if (!r.failures.empty()) {
+        CHECK(r.failures[0].line == 4);
+        CHECK(r.failures[0].message.find("expected a soot") != std::string::npos);
+    }
+}
+
+TEST(a_scenario_matches_the_hand_written_schedule) {
+    // The same feedings, scripted vs. runDays(): identical hidden values.
+    const auto& c = Catalog::v1();
+    std::string err;
+    auto sc = Scenario::parse(R"({
+        "end": "day 3 00:00",
+        "steps": [ { "at": "day 1 08:00", "feed": "charcoal" }, { "at": "day 1 12:00", "feed": "charcoal" },
+                   { "at": "day 1 16:00", "feed": "charcoal" }, { "at": "day 2 08:00", "feed": "charcoal" },
+                   { "at": "day 2 12:00", "feed": "charcoal" }, { "at": "day 2 16:00", "feed": "charcoal" } ] })",
+        c, &err);
+    CHECK(sc.has_value());
+    if (!sc) return;
+    Slime a = makeScenarioSlime(*sc, c);
+    runScenario(*sc, c, a);
+    Slime b("b", rest(), c);
+    runDays(b, 2, c.food("charcoal"), 3, c.habitat("pen"));
+    for (std::size_t i = 0; i < kPropertyCount; ++i) CHECK(std::fabs(a.values()[i] - b.values()[i]) < 1e-9);
+    CHECK(a.type() == b.type());
+}
+
+TEST(bad_scenarios_are_rejected_with_a_line) {
+    const auto& c = Catalog::v1();
+    auto rejects = [&](const char* text, const char* needle) {
+        std::string err;
+        auto sc = Scenario::parse(text, c, &err);
+        CHECK(!sc.has_value());
+        if (sc) std::printf("  accepted: %s\n", text);
+        CHECK(err.find(needle) != std::string::npos);
+        if (err.find(needle) == std::string::npos) std::printf("  got: %s\n", err.c_str());
+    };
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "day 1 08:00", "feed": "charcol" } ] })", "unknown food");
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "day 1 08:00" } ] })", "exactly one action");
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "day 1 08:00", "feed": "grain", "pick_up": true } ] })", "exactly one action");
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "day 2 08:00", "feed": "grain" } ] })", "after \"end\"");
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "noon", "feed": "grain" } ] })", "day D HH:MM");
+    rejects(R"({ "end": "day 1 10:00", "steps": [ { "at": "day 1 08:00", "expect": {} } ] })", "needs \"type\"");
+    rejects(R"({ "steps": [] })", "needs an \"end\"");
+    rejects(R"({ "end": 10, "steps": [], "sead": 1 })", "unknown key");
+}
+
+TEST(scenario_times_parse_as_written) {
+    const auto& c = Catalog::v1();
+    std::string err;
+    auto sc = Scenario::parse(R"({ "end": "day 2 09:30", "steps": [ { "at": 5, "feed": "grain" }, { "at": "day 1 00:00", "feed": "grain" } ] })", c, &err);
+    CHECK(sc.has_value());
+    if (!sc) return;
+    CHECK(std::fabs(sc->endHours - 33.5) < 1e-9);
+    CHECK(sc->steps.size() == 2);
+    CHECK(sc->steps[0].atHours == 0.0);   // sorted: day 1 00:00 before hour 5
+    CHECK(sc->steps[1].atHours == 5.0);
 }
 
 int main() {

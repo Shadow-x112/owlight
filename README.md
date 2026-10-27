@@ -19,7 +19,10 @@ ctest --test-dir build --output-on-failure
 ./build/sim/owlight_sim --days 7 --feed charcoal
 ./build/sim/owlight_sim --days 30 --feed river_stone --habitat cold_cave --hidden
 ./build/sim/owlight_sim --list
+./build/sim/owlight_sim --scenario scenarios/first_day.json
 ```
 
 `owlight_sim` runs one slime through a scenario and prints only what the player could have
-noticed. `--hidden` shows the numbers, for tuning.
+noticed. `--hidden` shows the numbers, for tuning. `--scenario` replays a scripted file
+(`scenarios/`, format in `sim/include/owlight/Scenario.h`) and exits 1 if any expectation in it
+fails; `scenarios/first_day.json` is the first day from the design doc, pinned by a test.

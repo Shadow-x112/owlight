@@ -25,7 +25,7 @@ const char* signText(Property p, int band) {
         case Property::Density:
             if (band == -2) return "so light it barely dents the straw";
             if (band == -1) return "sits lightly, almost bobbing";
-            if (band ==  1) return "sits heavy in the pen";
+            if (band ==  1) return "sits heavy where it rests";
             if (band ==  2) return "sinks deep into whatever it rests on";
             break;
         case Property::Heat:
@@ -54,7 +54,7 @@ const char* signText(Property p, int band) {
             break;
         case Property::Boldness:
             if (band == -2) return "hides the moment it sees you";
-            if (band == -1) return "keeps to the far side of the pen";
+            if (band == -1) return "keeps its distance from you";
             if (band ==  1) return "comes right up to your feet";
             if (band ==  2) return "tries to climb your boot";
             break;
@@ -72,12 +72,12 @@ const char* signText(Property p, int band) {
             if (band == -2) return "only moves after dark";
             if (band == -1) return "sluggish in daylight";
             if (band ==  1) return "sleeps as soon as the sun sets";
-            if (band ==  2) return "follows patches of sunlight around the pen";
+            if (band ==  2) return "follows patches of sunlight around";
             break;
         case Property::Bond:
             if (band == -2) return "shrinks away when you reach for it";
             if (band == -1) return "tolerates being picked up";
-            if (band ==  1) return "follows you to the edge of the pen";
+            if (band ==  1) return "follows you as far as it can";
             if (band ==  2) return "follows you everywhere you let it";
             break;
         case Property::Count:

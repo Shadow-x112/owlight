@@ -1,0 +1,27 @@
+{
+  "name": "The first day (docs/design.md §8), followed for the charcoal slime",
+  "seed": 0,
+  "habitat": "pen",
+  "end": "day 2 12:00",
+  "steps": [
+    { "at": "day 1 08:00", "near": true },
+    { "at": "day 1 08:00", "feed": "charcoal" },
+    { "at": "day 1 08:00", "expect": { "type": "plain" } },
+
+    { "at": "day 1 13:00", "pick_up": true },
+    { "at": "day 1 13:00", "feed": "charcoal" },
+
+    { "at": "day 1 18:00", "feed": "charcoal" },
+    { "at": "day 1 18:00", "expect": { "type": "plain", "sign": "cloudy" } },
+
+    { "at": "day 1 21:00", "name": "Cinder" },
+
+    { "at": "day 2 08:00", "expect": { "type": "plain" } },
+    { "at": "day 2 08:00", "feed": "charcoal" },
+    { "at": "day 2 08:00", "expect": { "type": "soot", "locked": false, "sign": "sits heavy" } },
+    { "at": "day 2 08:00", "move": "stove_corner" },
+    { "at": "day 2 08:00", "assign": "scrub_stove" },
+
+    { "at": "day 2 12:00", "expect": { "type": "soot" } }
+  ]
+}
