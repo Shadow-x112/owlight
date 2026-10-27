@@ -178,13 +178,13 @@ void AOwlightCharacter::UpdateFocus()
 		const FVector D = It->GetActorLocation() - Me;
 		const float Dist = D.Size2D();
 		// in reach and roughly in front (or very close)
-		if (Dist < Best && (Dist < 60.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusSlime = *It; }
+		if (Dist < Best && (Dist < 100.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusSlime = *It; }
 	}
 	for (TActorIterator<AFoodStockActor> It(GetWorld()); It; ++It)
 	{
 		const FVector D = It->GetActorLocation() - Me;
 		const float Dist = D.Size2D();
-		if (Dist < Best && (Dist < 60.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusStock = *It; FocusSlime = nullptr; }
+		if (Dist < Best && (Dist < 100.f || FVector::DotProduct(D.GetSafeNormal2D(), Fwd) > 0.2f)) { Best = Dist; FocusStock = *It; FocusSlime = nullptr; }
 	}
 }
 
